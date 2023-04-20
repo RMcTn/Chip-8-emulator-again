@@ -1,4 +1,6 @@
-use std::fs::File;
+use std::time::Duration;
+
+use sdl2::{event::Event, keyboard::Keycode, pixels::Color};
 
 struct Chip8 {
     memory: [u8; 4096],
@@ -20,6 +22,44 @@ impl Chip8 {
 const PROGRAM_OFFSET: usize = 0x200;
 
 fn main() {
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+
+    let window = video_subsystem
+        .window("Chip 8 Emulator", 1024, 768)
+        .opengl()
+        .build()
+        .unwrap();
+
+    let mut canvas = window.into_canvas().build().unwrap();
+
+    canvas.set_draw_color(Color::RGB(0, 255, 255));
+    canvas.clear();
+    canvas.present();
+
+    let mut event_pump = sdl_context.event_pump().unwrap();
+    let mut i = 0;
+    'running: loop {
+        i = (i + 1) % 255;
+        canvas.set_draw_color(Color::RGB(i, 64, 255 - i));
+        canvas.clear();
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => {
+                    break 'running;
+                }
+                _ => {}
+            }
+        }
+
+        canvas.present();
+        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+    }
+
     // Test ROM from https://github.com/corax89/chip8-test-rom
     let rom_bytes = std::fs::read("test_opcode.ch8").unwrap();
 
@@ -37,6 +77,8 @@ fn main() {
     }
 
     loop {
+        // TODO(reece): All this could be done in a "tick" or "process_next_instruction" function that would
+        // let us control by time how often we process intstructions
         let opcode: u16 = (chip.memory[chip.program_counter] as u16) << 8
             | chip.memory[chip.program_counter + 1] as u16;
 
