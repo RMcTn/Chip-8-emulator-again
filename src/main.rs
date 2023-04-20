@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
+#[derive(Debug)]
 struct Chip8 {
     memory: [u8; 4096],
     // uppermost 256 bytes (0xF00-0xFFF) potentially reserved for display refresh
@@ -14,7 +15,7 @@ struct Chip8 {
 }
 
 impl Chip8 {
-    fn increment_PC(&mut self) {
+    fn increment_pc(&mut self) {
         self.program_counter += 2;
     }
 }
@@ -45,11 +46,8 @@ fn main() {
 
     const CHIP_DISPLAY_WIDTH_IN_PIXELS: usize = 64;
     const CHIP_DISPLAY_HEIGHT_IN_PIXELS: usize = 32;
-    let mut display_buffer: [Color; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS] =
-        [Color::RGB(77, 33, 11); CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS];
-    for i in 0..display_buffer.len() {
-        display_buffer[i] = Color::RGB(i as u8, 64, 255 - i as u8);
-    }
+    let mut display_buffer: [u8; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS] =
+        [0; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS];
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
@@ -61,7 +59,10 @@ fn main() {
                 // No idea if it even is displaying the buffer properly
                 let width_ratio = 1024 / CHIP_DISPLAY_WIDTH_IN_PIXELS as u32;
                 let height_ratio = 768 / CHIP_DISPLAY_HEIGHT_IN_PIXELS as u32;
-                let color = display_buffer[x * y];
+                let color = match display_buffer[x * y] {
+                    1 => Color::RGB(255, 255, 255),
+                    _ => Color::RGB(0, 0, 0),
+                };
                 canvas.set_draw_color(color);
                 canvas
                     .fill_rect(Rect::new(
@@ -103,6 +104,12 @@ fn main() {
     };
 
     // Initialize Chip8
+
+    // Fonts sit at the start of memory
+    for (i, byte) in FONT_SPRITES.iter().enumerate() {
+        chip.memory[i] = *byte;
+    }
+
     for (i, byte) in rom_bytes.iter().enumerate() {
         chip.memory[PROGRAM_OFFSET + i] = *byte;
     }
@@ -135,18 +142,51 @@ fn main() {
                 let register = second_nibble;
                 let val_to_load = (opcode & 0x00FF) as u8;
                 chip.data_registers[register as usize] = val_to_load;
-                chip.increment_PC();
+                chip.increment_pc();
             }
             0xA => {
                 // Annn - LD I, addr
                 let val_to_load = opcode & 0x0FFF;
                 chip.i_register = val_to_load;
-                chip.increment_PC();
+                chip.increment_pc();
             }
             0xD => {
                 // DRW Vx, Vy, nibble
-                unimplemented_opcode(opcode, first_nibble, second_nibble, chip.program_counter);
+
+                let x_register = opcode & 0x0F00 >> 8;
+                let x = chip.data_registers[x_register as usize];
+                let y_register = opcode & 0x00F0 >> 4;
+                let y = chip.data_registers[y_register as usize];
+                let n_bytes = (opcode & 0x000F) as u8;
+
+                // Read n bytes from memory at position I
+                let memory_location = chip.memory[chip.i_register as usize];
+                let bytes_to_draw =
+                    &chip.memory[memory_location as usize..(memory_location + n_bytes) as usize];
+
+                // Display those bytes as sprites at Vx, Vy
+                // Sprites should be XOR'd into the display buffer
+                let mut was_collision = false;
+                for (i, byte) in bytes_to_draw.iter().enumerate() {
+                    let previous_pixel = display_buffer[(x * y) as usize + i];
+                    display_buffer[(x * y) as usize + i] = previous_pixel ^ byte;
+                    if previous_pixel == 1 && *byte == 1 {
+                        chip.data_registers[0xF] = 1;
+                        was_collision = true;
+                    }
+                    if !was_collision {
+                        chip.data_registers[0xF] = 0;
+                    }
+                }
+                // If ANY pixel set to 0 due to the XOR, set VF to 1, otherwise, set VF to 0
+                //
+                // TODO(reece) The collision logic with wrap
+                // TODO(reece) If sprite is outside the screen, wrap around the screen to the same Y coord
+                //	Didn't need it for the test program, so just going without this for now
+
+                chip.increment_pc();
             }
+
             _ => unimplemented_opcode(opcode, first_nibble, second_nibble, chip.program_counter),
         }
     }
@@ -163,3 +203,108 @@ fn unimplemented_opcode(
         opcode, first_nibble, second_nibble, program_counter
     );
 }
+
+const FONT_SPRITE_LENGTH_IN_BYTES: usize = 5;
+const NUMBER_OF_FONT_SPRITES: usize = 16; // 0 - F
+                                          //
+#[rustfmt::skip]
+const FONT_SPRITES: [u8; FONT_SPRITE_LENGTH_IN_BYTES * NUMBER_OF_FONT_SPRITES] = [
+//0
+    0b01100000,
+    0b10010000,
+    0b10010000,
+    0b10010000,
+    0b01100000,
+
+//1
+    0b01100000,
+    0b00100000,
+    0b00100000,
+    0b00100000,
+    0b01110000,
+
+//2
+    0b11100000,
+    0b00010000,
+    0b00110000,
+    0b01100000,
+    0b11110000,
+//3
+    0b11100000,
+    0b00010000,
+    0b01100000,
+    0b00010000,
+    0b11100000,
+//4
+    0b10100000,
+    0b10100000,
+    0b11100000,
+    0b00100000,
+    0b00100000,
+//5
+    0b11110000,
+    0b10000000,
+    0b11110000,
+    0b00010000,
+    0b11110000,
+//6
+    0b10000000,
+    0b10000000,
+    0b11110000,
+    0b10010000,
+    0b11110000,
+//7
+    0b11110000,
+    0b00010000,
+    0b00100000,
+    0b00100000,
+    0b00100000,
+//8
+    0b11110000,
+    0b10010000,
+    0b11110000,
+    0b10010000,
+    0b11110000,
+//9
+    0b11110000,
+    0b10010000,
+    0b11110000,
+    0b00010000,
+    0b00010000,
+//A
+    0b01100000,
+    0b10010000,
+    0b11110000,
+    0b10010000,
+    0b10010000,
+//B
+    0b10000000,
+    0b10000000,
+    0b11110000,
+    0b10010000,
+    0b11110000,
+//C
+    0b11110000,
+    0b10000000,
+    0b10000000,
+    0b10000000,
+    0b11110000,
+//D
+    0b11100000,
+    0b10010000,
+    0b10010000,
+    0b10010000,
+    0b11100000,
+//E
+    0b11110000,
+    0b10000000,
+    0b11100000,
+    0b10000000,
+    0b11110000,
+//F
+    0b11110000,
+    0b10000000,
+    0b11100000,
+    0b10000000,
+    0b10000000,
+];
