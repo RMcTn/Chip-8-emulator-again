@@ -48,16 +48,14 @@ impl Chip8 {
 
         let first_nibble_first_byte = opcode >> 12;
         let second_nibble_first_byte = opcode << 4 >> 12;
-        println!("{:X}", opcode);
+        println!("PC: {:X}, op: {:X}", self.program_counter, opcode);
         match first_nibble_first_byte {
-            0x0 => match second_nibble_first_byte {
-                0x0 => {
-                    unimplemented_opcode(
-                        opcode,
-                        first_nibble_first_byte,
-                        second_nibble_first_byte,
-                        self.program_counter,
-                    );
+            0x0 => match last_byte(opcode) {
+                0xEE => {
+                    // 00EE - RET
+                    // Return from a subroutine.
+                    self.program_counter = self.stack[self.stack_pointer as usize] as usize;
+                    self.stack_pointer -= 1;
                 }
                 _ => {
                     unimplemented_opcode(
@@ -76,6 +74,8 @@ impl Chip8 {
             0x2 => {
                 // 2nnn - CALL addr
                 // Call subroutine at nnn.
+
+                // TODO(reece): Pretty sure this means we're missing out the first stack place always
                 self.stack_pointer += 1;
                 self.stack[self.stack_pointer as usize] = self.program_counter as u16;
                 self.program_counter = (opcode & 0x0FFF) as usize;
@@ -279,8 +279,8 @@ fn main() {
                 let width_ratio = 1024 / CHIP_DISPLAY_WIDTH_IN_PIXELS as u32;
                 let height_ratio = 768 / CHIP_DISPLAY_HEIGHT_IN_PIXELS as u32;
                 let color = match chip.display_buffer[x * y] {
-                    1 => Color::RGB(255, 255, 255),
-                    _ => Color::RGB(0, 0, 0),
+                    0 => Color::RGB(0, 0, 0),
+                    _ => Color::RGB(255, 255, 255),
                 };
                 canvas.set_draw_color(color);
                 canvas
