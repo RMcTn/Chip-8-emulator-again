@@ -14,6 +14,8 @@ struct Chip8 {
     address_register: u16,
     data_registers: [u8; 16],
     program_counter: usize,
+    stack: [u16; 16],
+    stack_pointer: u8,
     i_register: u16, // Holds memory locations. Better name for this?
     display_buffer: [u8; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
 }
@@ -22,36 +24,66 @@ fn last_byte(val: u16) -> u8 {
     (val & 0x00FF) as u8
 }
 
+fn first_byte(val: u16) -> u8 {
+    (val & 0xFF00 >> 8) as u8
+}
+
+fn first_nibble(val: u8) -> u8 {
+    val & 0xF0 >> 4
+}
+
+fn last_nibble(val: u8) -> u8 {
+    val & 0x0F
+}
+
 impl Chip8 {
     fn increment_pc(&mut self) {
         self.program_counter += 2;
     }
 
     fn process_next_instruction(&mut self) {
-        // Opcodes taken from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
+        // Opcodes and most documentation taken from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
             | self.memory[self.program_counter + 1] as u16;
 
-        let first_nibble = opcode >> 12;
-        let second_nibble = opcode << 4 >> 12;
+        let first_nibble_first_byte = opcode >> 12;
+        let second_nibble_first_byte = opcode << 4 >> 12;
         println!("{:X}", opcode);
-        match first_nibble {
-            0x0 => match second_nibble {
+        match first_nibble_first_byte {
+            0x0 => match second_nibble_first_byte {
                 0x0 => {
-                    unimplemented_opcode(opcode, first_nibble, second_nibble, self.program_counter);
+                    unimplemented_opcode(
+                        opcode,
+                        first_nibble_first_byte,
+                        second_nibble_first_byte,
+                        self.program_counter,
+                    );
                 }
                 _ => {
-                    unimplemented_opcode(opcode, first_nibble, second_nibble, self.program_counter);
+                    unimplemented_opcode(
+                        opcode,
+                        first_nibble_first_byte,
+                        second_nibble_first_byte,
+                        self.program_counter,
+                    );
                 }
             },
             0x1 => {
-                // 1nnn - JP addr
+                // 1nnn - Jump (JP) addr
                 let address_to_jump = opcode & 0x0FFF;
                 self.program_counter = address_to_jump as usize;
             }
+            0x2 => {
+                // 2nnn - CALL addr
+                // Call subroutine at nnn.
+                self.stack_pointer += 1;
+                self.stack[self.stack_pointer as usize] = self.program_counter as u16;
+                self.program_counter = (opcode & 0x0FFF) as usize;
+            }
             0x3 => {
-                // SE Vx, byte
-                let register = second_nibble;
+                // 3xkk - Skip Equal (SE) Vx, byte
+                // Skip next instruction if Vx = kk.
+                let register = second_nibble_first_byte;
                 let val_to_compare = last_byte(opcode);
 
                 self.increment_pc();
@@ -60,22 +92,75 @@ impl Chip8 {
                     self.increment_pc();
                 }
             }
+            0x4 => {
+                // 4xkk - Skip Not Equal (SNE) Vx, byte
+                // Skip next instruction if Vx != kk.
+                let register = second_nibble_first_byte;
+                let val_to_compare = last_byte(opcode);
+
+                self.increment_pc();
+
+                if self.data_registers[register as usize] == val_to_compare {
+                    self.increment_pc();
+                }
+            }
+            0x5 => {
+                // 5xy0 - Skip Equal (SE) Vx, Vy
+                // Skip next instruction if Vx = Vy.
+                let x_register = last_nibble(first_byte(opcode));
+                let y_register = first_nibble(last_byte(opcode));
+                let x_val = self.data_registers[x_register as usize];
+                let y_val = self.data_registers[y_register as usize];
+
+                self.increment_pc();
+
+                if x_val == y_val {
+                    self.increment_pc();
+                }
+            }
             0x6 => {
-                // 6xkk - LD Vx, byte
-                let register = second_nibble;
+                // 6xkk - Load (LD) Vx, byte
+                // Set Vx = kk.
+                let register = second_nibble_first_byte;
                 let val_to_load = last_byte(opcode);
                 self.data_registers[register as usize] = val_to_load;
                 self.increment_pc();
             }
+            0x7 => {
+                // 7xkk - ADD Vx, byte
+                // Set Vx = Vx + kk.
+                let register = second_nibble_first_byte;
+                let register_val = self.data_registers[register as usize];
+                let val_to_add = last_byte(opcode);
+                self.data_registers[register as usize] += val_to_add.wrapping_add(register_val);
+                self.increment_pc();
+            }
+            0x9 => {
+                // 9xy0 - Skip Not Equal (SNE) Vx, Vy
+                // Skip next instruction if Vx != Vy.
+                let x_register = last_nibble(first_byte(opcode));
+                let y_register = first_nibble(last_byte(opcode));
+                let x_val = self.data_registers[x_register as usize];
+                let y_val = self.data_registers[y_register as usize];
+
+                self.increment_pc();
+
+                if x_val != y_val {
+                    self.increment_pc();
+                }
+            }
             0xA => {
-                // Annn - LD I, addr
+                // Annn - Load (LD) I, addr
+                // Set I = nnn.
                 let val_to_load = opcode & 0x0FFF;
                 self.i_register = val_to_load;
                 self.increment_pc();
             }
             0xD => {
-                // DRW Vx, Vy, nibble
-
+                // Draw (DRW) Vx, Vy, nibble
+                // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+                // Sprites are XOR'd onto the screen.
+                // If ANY pixel set to 0 due to the XOR, then a collision has happened.
                 let x_register = opcode & 0x0F00 >> 8;
                 let x = self.data_registers[x_register as usize];
                 let y_register = opcode & 0x00F0 >> 4;
@@ -101,7 +186,6 @@ impl Chip8 {
                         self.data_registers[0xF] = 0;
                     }
                 }
-                // If ANY pixel set to 0 due to the XOR, set VF to 1, otherwise, set VF to 0
                 //
                 // TODO(reece) The collision logic with wrap
                 // TODO(reece) If sprite is outside the screen, wrap around the screen to the same Y coord
@@ -110,7 +194,12 @@ impl Chip8 {
                 self.increment_pc();
             }
 
-            _ => unimplemented_opcode(opcode, first_nibble, second_nibble, self.program_counter),
+            _ => unimplemented_opcode(
+                opcode,
+                first_nibble_first_byte,
+                second_nibble_first_byte,
+                self.program_counter,
+            ),
         }
     }
 }
@@ -149,6 +238,8 @@ fn main() {
         program_counter: PROGRAM_OFFSET,
         i_register: 0,
         display_buffer: [0; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
+        stack_pointer: 0,
+        stack: [0; 16],
     };
 
     // Initialize Chip8
@@ -204,7 +295,7 @@ fn main() {
         }
 
         canvas.present();
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+        // ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 }
 
