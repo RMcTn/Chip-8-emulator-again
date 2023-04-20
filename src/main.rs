@@ -18,12 +18,17 @@ struct Chip8 {
     display_buffer: [u8; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
 }
 
+fn last_byte(val: u16) -> u8 {
+    (val & 0x00FF) as u8
+}
+
 impl Chip8 {
     fn increment_pc(&mut self) {
         self.program_counter += 2;
     }
 
     fn process_next_instruction(&mut self) {
+        // Opcodes taken from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
             | self.memory[self.program_counter + 1] as u16;
 
@@ -44,10 +49,21 @@ impl Chip8 {
                 let address_to_jump = opcode & 0x0FFF;
                 self.program_counter = address_to_jump as usize;
             }
+            0x3 => {
+                // SE Vx, byte
+                let register = second_nibble;
+                let val_to_compare = last_byte(opcode);
+
+                self.increment_pc();
+
+                if self.data_registers[register as usize] == val_to_compare {
+                    self.increment_pc();
+                }
+            }
             0x6 => {
                 // 6xkk - LD Vx, byte
                 let register = second_nibble;
-                let val_to_load = (opcode & 0x00FF) as u8;
+                let val_to_load = last_byte(opcode);
                 self.data_registers[register as usize] = val_to_load;
                 self.increment_pc();
             }
