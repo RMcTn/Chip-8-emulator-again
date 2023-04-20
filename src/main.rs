@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use sdl2::{event::Event, keyboard::Keycode, pixels::Color};
+use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
 struct Chip8 {
     memory: [u8; 4096],
@@ -25,8 +25,14 @@ fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
+    const DISPLAY_WIDTH_IN_PIXELS: usize = 1024;
+    const DISPLAY_HEIGHT_IN_PIXELS: usize = 768;
     let window = video_subsystem
-        .window("Chip 8 Emulator", 1024, 768)
+        .window(
+            "Chip 8 Emulator",
+            DISPLAY_WIDTH_IN_PIXELS as u32,
+            DISPLAY_HEIGHT_IN_PIXELS as u32,
+        )
         .opengl()
         .build()
         .unwrap();
@@ -37,12 +43,37 @@ fn main() {
     canvas.clear();
     canvas.present();
 
+    const CHIP_DISPLAY_WIDTH_IN_PIXELS: usize = 64;
+    const CHIP_DISPLAY_HEIGHT_IN_PIXELS: usize = 32;
+    let mut display_buffer: [Color; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS] =
+        [Color::RGB(77, 33, 11); CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS];
+    for i in 0..display_buffer.len() {
+        display_buffer[i] = Color::RGB(i as u8, 64, 255 - i as u8);
+    }
+
     let mut event_pump = sdl_context.event_pump().unwrap();
-    let mut i = 0;
     'running: loop {
-        i = (i + 1) % 255;
-        canvas.set_draw_color(Color::RGB(i, 64, 255 - i));
         canvas.clear();
+        for x in 0..CHIP_DISPLAY_WIDTH_IN_PIXELS {
+            for y in 0..CHIP_DISPLAY_HEIGHT_IN_PIXELS {
+                // Doesn't feel like we want to be doing it this way, but it gets something on
+                // the screen quick.
+                // No idea if it even is displaying the buffer properly
+                let width_ratio = 1024 / CHIP_DISPLAY_WIDTH_IN_PIXELS as u32;
+                let height_ratio = 768 / CHIP_DISPLAY_HEIGHT_IN_PIXELS as u32;
+                let color = display_buffer[x * y];
+                canvas.set_draw_color(color);
+                canvas
+                    .fill_rect(Rect::new(
+                        (x as u32 * width_ratio) as i32,
+                        (y as u32 * height_ratio) as i32,
+                        width_ratio,
+                        height_ratio,
+                    ))
+                    .unwrap();
+            }
+        }
+
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
