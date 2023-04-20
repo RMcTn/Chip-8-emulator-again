@@ -228,8 +228,16 @@ fn main() {
     canvas.clear();
     canvas.present();
 
+    let args: Vec<String> = std::env::args().collect();
+
+    let file_path = if args.len() >= 2 {
+        &args[1]
+    } else {
+        "test_opcode.ch8"
+    };
+
     // Test ROM from https://github.com/corax89/chip8-test-rom
-    let rom_bytes = std::fs::read("test_opcode.ch8").unwrap();
+    let rom_bytes = std::fs::read(file_path).unwrap();
 
     let mut chip = Chip8 {
         memory: [0; 4096],
