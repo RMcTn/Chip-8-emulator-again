@@ -274,6 +274,9 @@ fn main() {
     }
 
     let mut event_pump = sdl_context.event_pump().unwrap();
+    let mut cycles = 0;
+    let mut executing = true;
+    let mut step_once = true;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -284,11 +287,34 @@ fn main() {
                 } => {
                     break 'running;
                 }
+                Event::KeyDown {
+                    keycode: Some(Keycode::P),
+                    ..
+                } => {
+                    executing = !executing;
+                    println!("Toggled executing to {}", executing);
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::N),
+                    ..
+                } => {
+                    // Just step through
+                    executing = false;
+                    step_once = true;
+                    println!("Stepping once");
+                }
                 _ => {}
             }
         }
 
-        chip.process_next_instruction();
+        if executing || step_once {
+            chip.process_next_instruction();
+            cycles += 1;
+            if step_once {
+                step_once = false;
+                executing = false;
+            }
+        }
 
         canvas.clear();
         for x in 0..CHIP_DISPLAY_WIDTH_IN_PIXELS {
