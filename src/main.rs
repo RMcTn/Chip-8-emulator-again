@@ -274,7 +274,6 @@ fn main() {
     }
 
     let mut event_pump = sdl_context.event_pump().unwrap();
-    let mut cycles = 0;
     let mut executing = true;
     let mut step_once = true;
     'running: loop {
@@ -309,7 +308,6 @@ fn main() {
 
         if executing || step_once {
             chip.process_next_instruction();
-            cycles += 1;
             if step_once {
                 step_once = false;
                 executing = false;
