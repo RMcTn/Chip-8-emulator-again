@@ -51,11 +51,17 @@ impl Chip8 {
         println!("PC: {:X}, op: {:X}", self.program_counter, opcode);
         match first_nibble_first_byte {
             0x0 => match last_byte(opcode) {
+                0xE0 => {
+                    self.display_buffer =
+                        [0; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS];
+                    self.increment_pc();
+                }
                 0xEE => {
                     // 00EE - RET
                     // Return from a subroutine.
                     self.program_counter = self.stack[self.stack_pointer as usize] as usize;
                     self.stack_pointer -= 1;
+                    self.increment_pc();
                 }
                 _ => {
                     unimplemented_opcode(
@@ -169,22 +175,27 @@ impl Chip8 {
 
                 // Read n bytes from memory at position I
                 let memory_location = self.memory[self.i_register as usize];
-                let bytes_to_draw =
-                    &self.memory[memory_location as usize..(memory_location + n_bytes) as usize];
+                let bytes_to_draw = &self.memory
+                    [memory_location as usize..(memory_location as usize + n_bytes as usize)];
 
                 // Display those bytes as sprites at Vx, Vy
                 // Sprites should be XOR'd into the display buffer
                 let mut was_collision = false;
                 for (i, byte) in bytes_to_draw.iter().enumerate() {
-                    let previous_pixel = self.display_buffer[(x * y) as usize + i];
-                    self.display_buffer[(x * y) as usize + i] = previous_pixel ^ byte;
-                    if previous_pixel == 1 && *byte == 1 {
-                        self.data_registers[0xF] = 1;
-                        was_collision = true;
+                    let byte = *byte;
+                    for bit_location in 0..8 {
+                        let bit = (byte >> bit_location) & 0xF;
+                        let previous_pixel =
+                            self.display_buffer[(x * y) as usize + i + bit_location];
+                        self.display_buffer[(x * y) as usize + i] = previous_pixel ^ bit;
+                        if previous_pixel == 1 && byte == 1 {
+                            self.data_registers[0xF] = 1;
+                            was_collision = true;
+                        }
                     }
-                    if !was_collision {
-                        self.data_registers[0xF] = 0;
-                    }
+                }
+                if !was_collision {
+                    self.data_registers[0xF] = 0;
                 }
                 //
                 // TODO(reece) The collision logic with wrap
@@ -237,6 +248,7 @@ fn main() {
     };
 
     // Test ROM from https://github.com/corax89/chip8-test-rom
+    // More test ROMS from https://github.com/Timendus/chip8-test-suite#chip-8-splash-screen
     let rom_bytes = std::fs::read(file_path).unwrap();
 
     let mut chip = Chip8 {
@@ -290,6 +302,8 @@ fn main() {
                     0 => Color::RGB(0, 0, 0),
                     _ => Color::RGB(255, 255, 255),
                 };
+                // Problem is we're not treating each bit in the byte as something to draw (which
+                // it is!!!)
                 canvas.set_draw_color(color);
                 canvas
                     .fill_rect(Rect::new(
