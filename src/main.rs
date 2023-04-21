@@ -19,7 +19,7 @@ struct Chip8 {
     stack_pointer: u8,
     // Holds memory locations. Better name for this?
     i_register: u16,
-    display_buffer: [u8; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
+    display_buffer: [bool; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
 }
 
 fn last_byte(val: u16) -> u8 {
@@ -64,7 +64,7 @@ impl Chip8 {
             0x0 => match last_byte(opcode) {
                 0xE0 => {
                     self.display_buffer =
-                        [0; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS];
+                        [false; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS];
                     self.increment_pc();
                 }
                 0xEE => {
@@ -189,18 +189,32 @@ impl Chip8 {
                 let bytes_to_draw = &self.memory
                     [memory_location as usize..(memory_location as usize + n_bytes as usize)];
 
+                dbg!(n_bytes);
+                dbg!(bytes_to_draw);
                 // Display those bytes as sprites at Vx, Vy
                 // Sprites should be XOR'd into the display buffer
                 let mut was_collision = false;
+
+                // TODO(reece) The collision logic with wrap
+                // TODO(reece) If sprite is outside the screen, wrap around the screen to the same Y coord
+                //	Didn't need it for the test program, so just going without this for now
+                // The problem is here I think. I don't think our indexing is correct
+                println!("Drawing at X {}", x);
+                println!("Drawing at Y {}", y);
                 for (i, byte) in bytes_to_draw.iter().enumerate() {
                     let byte = *byte;
-                    for bit_location in 0..8 {
-                        let bit = (byte >> bit_location) & 0xF;
-                        let idx = (x as usize * y as usize) + (i * 8) + bit_location;
+                    for bit_position in 0..8 {
+                        let bit_is_set = ((byte >> 7 - bit_position) & 0x1) > 0;
+                        let rows = CHIP_DISPLAY_HEIGHT_IN_PIXELS;
+
+                        // TODO(reece): Pixel wrapping
+                        let idx = (x + bit_position) as usize + ((y as usize + i) * rows);
+
+                        // TODO(reece): Would love to use the set_pixel function, but cba fighting
+                        // with borrow checker atm
                         let previous_pixel = self.display_buffer[idx];
-                        self.display_buffer[idx] = previous_pixel ^ bit;
-                        if previous_pixel == 1 && byte == 1 {
-                            self.data_registers[0xF] = 1;
+                        self.display_buffer[idx] ^= bit_is_set;
+                        if previous_pixel == true && bit_is_set {
                             was_collision = true;
                         }
                     }
@@ -208,10 +222,6 @@ impl Chip8 {
                 if !was_collision {
                     self.data_registers[0xF] = 0;
                 }
-                //
-                // TODO(reece) The collision logic with wrap
-                // TODO(reece) If sprite is outside the screen, wrap around the screen to the same Y coord
-                //	Didn't need it for the test program, so just going without this for now
 
                 self.increment_pc();
             }
@@ -223,6 +233,18 @@ impl Chip8 {
                 self.program_counter,
             ),
         }
+    }
+
+    fn set_pixel(&mut self, mut x: usize, mut y: usize) -> bool {
+        let columns = CHIP_DISPLAY_WIDTH_IN_PIXELS as u8;
+        let rows = CHIP_DISPLAY_HEIGHT_IN_PIXELS;
+
+        // TODO(reece): Pixel wrapping
+        let idx = x as usize + (y as usize * rows);
+
+        // self.display_buffer[idx] ^= true;
+        self.display_buffer[idx] = true;
+        return !self.display_buffer[idx];
     }
 }
 
@@ -268,7 +290,7 @@ fn main() {
         data_registers: [0; 16],
         program_counter: PROGRAM_OFFSET,
         i_register: 0,
-        display_buffer: [0; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
+        display_buffer: [false; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
         stack_pointer: 0,
         stack: [0; 16],
     };
@@ -287,6 +309,7 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut executing = true;
     let mut step_once = true;
+    let scale = 4;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -313,6 +336,20 @@ fn main() {
                     step_once = true;
                     println!("Stepping once");
                 }
+                Event::KeyDown {
+                    keycode: Some(Keycode::D),
+                    ..
+                } => {
+                    dbg!(chip.display_buffer);
+                    // First index where false
+
+                    for (i, b) in chip.display_buffer.iter().enumerate() {
+                        if *b == false {
+                            println!("False at 0x{:X} ({})", i, i);
+                            break;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -329,17 +366,19 @@ fn main() {
         canvas.clear();
         for x in 0..CHIP_DISPLAY_WIDTH_IN_PIXELS {
             for y in 0..CHIP_DISPLAY_HEIGHT_IN_PIXELS {
-                // Doesn't feel like we want to be doing it this way, but it gets something on
-                // the screen quick.
-                // No idea if it even is displaying the buffer properly
-                let color = match chip.display_buffer[x * y] {
-                    0 => Color::RGB(0, 0, 0),
-                    _ => Color::RGB(255, 255, 255),
+                let color = match chip.display_buffer[x + (y * CHIP_DISPLAY_HEIGHT_IN_PIXELS)] {
+                    false => Color::RGB(0, 0, 0),
+                    true => Color::RGB(255, 255, 255),
                 };
                 canvas.set_draw_color(color);
                 canvas
                     // TODO(reece): Scale this up better
-                    .fill_rect(Rect::new(x as i32, y as i32, 1, 1))
+                    .fill_rect(Rect::new(
+                        x as i32 * scale,
+                        y as i32 * scale,
+                        1 * scale as u32,
+                        1 * scale as u32,
+                    ))
                     .unwrap();
             }
         }
