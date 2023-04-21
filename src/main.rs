@@ -11,12 +11,14 @@ struct Chip8 {
     // uppermost 256 bytes (0xF00-0xFFF) potentially reserved for display refresh
     // 96 bytes down from that (0xEA0-0xEFF) is call stack and other internal usage stuff
     //
+    // was this meant to be i_register or something?
     address_register: u16,
     data_registers: [u8; 16],
     program_counter: usize,
     stack: [u16; 16],
     stack_pointer: u8,
-    i_register: u16, // Holds memory locations. Better name for this?
+    // Holds memory locations. Better name for this?
+    i_register: u16,
     display_buffer: [u8; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
 }
 
@@ -25,11 +27,11 @@ fn last_byte(val: u16) -> u8 {
 }
 
 fn first_byte(val: u16) -> u8 {
-    (val & 0xFF00 >> 8) as u8
+    ((val & 0xFF00) >> 8) as u8
 }
 
 fn first_nibble(val: u8) -> u8 {
-    val & 0xF0 >> 4
+    (val & 0xF0) >> 4
 }
 
 fn last_nibble(val: u8) -> u8 {
@@ -41,13 +43,22 @@ impl Chip8 {
         self.program_counter += 2;
     }
 
+    fn print_registers(&self) {
+        println!("Program Counter: {:X}", self.program_counter);
+        println!("Program Counter: {:X}", self.i_register);
+        println!("Program Counter: {:X}", self.stack_pointer);
+        for (register, value) in self.data_registers.iter().enumerate() {
+            println!("Register {:X}: {:X}", register, value);
+        }
+    }
+
     fn process_next_instruction(&mut self) {
         // Opcodes and most documentation taken from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
             | self.memory[self.program_counter + 1] as u16;
 
-        let first_nibble_first_byte = opcode >> 12;
-        let second_nibble_first_byte = opcode << 4 >> 12;
+        let first_nibble_first_byte = first_nibble(first_byte(opcode));
+        let second_nibble_first_byte = last_nibble(first_byte(opcode));
         println!("PC: {:X}, op: {:X}", self.program_counter, opcode);
         match first_nibble_first_byte {
             0x0 => match last_byte(opcode) {
@@ -167,11 +178,11 @@ impl Chip8 {
                 // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
                 // Sprites are XOR'd onto the screen.
                 // If ANY pixel set to 0 due to the XOR, then a collision has happened.
-                let x_register = opcode & 0x0F00 >> 8;
+                let x_register = last_nibble(first_byte(opcode));
                 let x = self.data_registers[x_register as usize];
-                let y_register = opcode & 0x00F0 >> 4;
+                let y_register = first_nibble(last_byte(opcode));
                 let y = self.data_registers[y_register as usize];
-                let n_bytes = (opcode & 0x000F) as u8;
+                let n_bytes = last_nibble(last_byte(opcode));
 
                 // Read n bytes from memory at position I
                 let memory_location = self.memory[self.i_register as usize];
@@ -185,9 +196,9 @@ impl Chip8 {
                     let byte = *byte;
                     for bit_location in 0..8 {
                         let bit = (byte >> bit_location) & 0xF;
-                        let previous_pixel =
-                            self.display_buffer[(x * y) as usize + i + bit_location];
-                        self.display_buffer[(x * y) as usize + i] = previous_pixel ^ bit;
+                        let idx = (x as usize * y as usize) + (i * 8) + bit_location;
+                        let previous_pixel = self.display_buffer[idx];
+                        self.display_buffer[idx] = previous_pixel ^ bit;
                         if previous_pixel == 1 && byte == 1 {
                             self.data_registers[0xF] = 1;
                             was_collision = true;
@@ -311,6 +322,7 @@ fn main() {
             if step_once {
                 step_once = false;
                 executing = false;
+                chip.print_registers();
             }
         }
 
@@ -320,22 +332,14 @@ fn main() {
                 // Doesn't feel like we want to be doing it this way, but it gets something on
                 // the screen quick.
                 // No idea if it even is displaying the buffer properly
-                let width_ratio = 1024 / CHIP_DISPLAY_WIDTH_IN_PIXELS as u32;
-                let height_ratio = 768 / CHIP_DISPLAY_HEIGHT_IN_PIXELS as u32;
                 let color = match chip.display_buffer[x * y] {
                     0 => Color::RGB(0, 0, 0),
                     _ => Color::RGB(255, 255, 255),
                 };
-                // Problem is we're not treating each bit in the byte as something to draw (which
-                // it is!!!)
                 canvas.set_draw_color(color);
                 canvas
-                    .fill_rect(Rect::new(
-                        (x as u32 * width_ratio) as i32,
-                        (y as u32 * height_ratio) as i32,
-                        width_ratio,
-                        height_ratio,
-                    ))
+                    // TODO(reece): Scale this up better
+                    .fill_rect(Rect::new(x as i32, y as i32, 1, 1))
                     .unwrap();
             }
         }
@@ -345,12 +349,7 @@ fn main() {
     }
 }
 
-fn unimplemented_opcode(
-    opcode: u16,
-    first_nibble: u16,
-    second_nibble: u16,
-    program_counter: usize,
-) {
+fn unimplemented_opcode(opcode: u16, first_nibble: u8, second_nibble: u8, program_counter: usize) {
     panic!(
         "Unimplemented opcode {:X}, first nibble: {:X}, second nibble: {:X}, PC: {:X}",
         opcode, first_nibble, second_nibble, program_counter
@@ -359,7 +358,7 @@ fn unimplemented_opcode(
 
 const FONT_SPRITE_LENGTH_IN_BYTES: usize = 5;
 const NUMBER_OF_FONT_SPRITES: usize = 16; // 0 - F
-                                          //
+
 #[rustfmt::skip]
 const FONT_SPRITES: [u8; FONT_SPRITE_LENGTH_IN_BYTES * NUMBER_OF_FONT_SPRITES] = [
 //0
