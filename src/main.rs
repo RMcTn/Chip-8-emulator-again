@@ -45,8 +45,8 @@ impl Chip8 {
 
     fn print_registers(&self) {
         println!("Program Counter: {:X}", self.program_counter);
-        println!("Program Counter: {:X}", self.i_register);
-        println!("Program Counter: {:X}", self.stack_pointer);
+        println!("I register: {:X}", self.i_register);
+        println!("Stack pointer : {:X}", self.stack_pointer);
         for (register, value) in self.data_registers.iter().enumerate() {
             println!("Register {:X}: {:X}", register, value);
         }
