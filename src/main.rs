@@ -185,7 +185,7 @@ impl Chip8 {
                 let n_bytes = last_nibble(last_byte(opcode));
 
                 // Read n bytes from memory at position I
-                let memory_location = self.memory[self.i_register as usize];
+                let memory_location = self.i_register as usize;
                 let bytes_to_draw = &self.memory
                     [memory_location as usize..(memory_location as usize + n_bytes as usize)];
 
@@ -309,7 +309,7 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut executing = true;
     let mut step_once = true;
-    let scale = 4;
+    let scale = 8;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
