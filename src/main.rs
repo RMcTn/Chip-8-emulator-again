@@ -198,23 +198,21 @@ impl Chip8 {
                 // TODO(reece) The collision logic with wrap
                 // TODO(reece) If sprite is outside the screen, wrap around the screen to the same Y coord
                 //	Didn't need it for the test program, so just going without this for now
-                // The problem is here I think. I don't think our indexing is correct
                 println!("Drawing at X {}", x);
                 println!("Drawing at Y {}", y);
                 for (i, byte) in bytes_to_draw.iter().enumerate() {
                     let byte = *byte;
                     for bit_position in 0..8 {
                         let bit_is_set = ((byte >> 7 - bit_position) & 0x1) > 0;
-                        let rows = CHIP_DISPLAY_HEIGHT_IN_PIXELS;
 
                         // TODO(reece): Pixel wrapping
-                        let idx = (x + bit_position) as usize + ((y as usize + i) * rows);
 
-                        // TODO(reece): Would love to use the set_pixel function, but cba fighting
-                        // with borrow checker atm
-                        let previous_pixel = self.display_buffer[idx];
-                        self.display_buffer[idx] ^= bit_is_set;
-                        if previous_pixel == true && bit_is_set {
+                        if Chip8::set_pixel(
+                            self.display_buffer.as_mut_slice(),
+                            (x + bit_position) as usize,
+                            y as usize + i,
+                            bit_is_set,
+                        ) {
                             was_collision = true;
                         }
                     }
@@ -235,16 +233,16 @@ impl Chip8 {
         }
     }
 
-    fn set_pixel(&mut self, mut x: usize, mut y: usize) -> bool {
-        let columns = CHIP_DISPLAY_WIDTH_IN_PIXELS as u8;
-        let rows = CHIP_DISPLAY_HEIGHT_IN_PIXELS;
-
-        // TODO(reece): Pixel wrapping
-        let idx = x as usize + (y as usize * rows);
-
-        // self.display_buffer[idx] ^= true;
-        self.display_buffer[idx] = true;
-        return !self.display_buffer[idx];
+    /// XOR's the pixel at x,y with value.
+    /// Returns true if the pixel was set to 0 as a result of the XOR, false otherwise
+    fn set_pixel(display_buffer: &mut [bool], x: usize, y: usize, value: bool) -> bool {
+        let idx = idx_for_display(x as u8, y as u8);
+        let previous_pixel = display_buffer[idx];
+        display_buffer[idx] ^= true;
+        if previous_pixel == true && value {
+            return true;
+        }
+        return false;
     }
 }
 
@@ -366,13 +364,12 @@ fn main() {
         canvas.clear();
         for x in 0..CHIP_DISPLAY_WIDTH_IN_PIXELS {
             for y in 0..CHIP_DISPLAY_HEIGHT_IN_PIXELS {
-                let color = match chip.display_buffer[x + (y * CHIP_DISPLAY_HEIGHT_IN_PIXELS)] {
+                let color = match chip.display_buffer[idx_for_display(x as u8, y as u8)] {
                     false => Color::RGB(0, 0, 0),
-                    true => Color::RGB(255, 255, 255),
+                    true => Color::RGB(120, 64, 127),
                 };
                 canvas.set_draw_color(color);
                 canvas
-                    // TODO(reece): Scale this up better
                     .fill_rect(Rect::new(
                         x as i32 * scale,
                         y as i32 * scale,
@@ -383,6 +380,7 @@ fn main() {
             }
         }
 
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.present();
         // ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
@@ -499,3 +497,7 @@ const FONT_SPRITES: [u8; FONT_SPRITE_LENGTH_IN_BYTES * NUMBER_OF_FONT_SPRITES] =
     0b10000000,
     0b10000000,
 ];
+
+fn idx_for_display(x: u8, y: u8) -> usize {
+    x as usize + (y as usize * CHIP_DISPLAY_HEIGHT_IN_PIXELS)
+}
