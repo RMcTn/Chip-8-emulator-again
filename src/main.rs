@@ -162,33 +162,32 @@ impl Chip8 {
                 let x = self.data_registers[x_register as usize];
                 let y = self.data_registers[y_register as usize];
                 match last_nibble(last_byte(opcode)) {
-                    0 => {
+                    0x0 => {
                         // 8xy0 - LD Vx, Vy
                         // Set Vx = Vy.
-
                         self.data_registers[x_register as usize] =
                             self.data_registers[y_register as usize];
                         self.increment_pc();
                     }
-                    1 => {
+                    0x1 => {
                         // 8xy1 - OR Vx, Vy
                         // Set Vx = Vx OR Vy.
                         self.data_registers[x_register as usize] = x | y;
                         self.increment_pc();
                     }
-                    2 => {
+                    0x2 => {
                         // 8xy2 - AND Vx, Vy
                         // Set Vx = Vx AND Vy.
                         self.data_registers[x_register as usize] = x & y;
                         self.increment_pc();
                     }
-                    3 => {
+                    0x3 => {
                         // 8xy3 - XOR Vx, Vy
                         // Set Vx = Vx XOR Vy.
                         self.data_registers[x_register as usize] = x ^ y;
                         self.increment_pc();
                     }
-                    4 => {
+                    0x4 => {
                         // 8xy4 - ADD Vx, Vy
                         // Set Vx = Vx + Vy, set VF = carry.
                         let (new_val, overflow_happened) = x.overflowing_add(y);
@@ -196,7 +195,7 @@ impl Chip8 {
                         self.data_registers[x_register as usize] = new_val;
                         self.increment_pc();
                     }
-                    5 => {
+                    0x5 => {
                         // 8xy5 - SUB Vx, Vy
                         // Set Vx = Vx - Vy, set VF = NOT borrow. (VF = Vx > Vy)
                         let new_val = x.wrapping_sub(y);
@@ -206,6 +205,20 @@ impl Chip8 {
                             self.data_registers[0xF] = 0;
                         }
                         self.data_registers[x_register as usize] = new_val;
+                        self.increment_pc();
+                    }
+                    0x6 => {
+                        // 8xy6 - SHR Vx {, Vy}
+                        // Set Vx = Vx SHR 1.
+                        self.data_registers[0xF] = x & 0x1;
+                        self.data_registers[x_register as usize] = x >> 1;
+                        self.increment_pc();
+                    }
+                    0xE => {
+                        // 8xyE - SHL Vx {, Vy}
+                        // Set Vx = Vx SHL 1.
+                        self.data_registers[0xF] = x >> 7;
+                        self.data_registers[x_register as usize] = x << 1;
                         self.increment_pc();
                     }
                     _ => unimplemented_opcode(
