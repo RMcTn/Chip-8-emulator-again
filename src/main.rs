@@ -305,12 +305,22 @@ impl Chip8 {
                     // Fx55 - LD [I], Vx
                     // Store registers V0 through Vx in memory starting at location I.
                     let start_address = self.i_register as usize;
-                    self.print_registers();
-                    println!("{:X}", x);
                     // TODO(reece): Do we care about checking for x > 0xF here?
                     for reg in 0..x as usize {
                         self.memory[start_address + reg] = self.data_registers[reg];
                     }
+                    self.increment_pc();
+                }
+                0x65 => {
+                    // Fx65 - LD Vx, [I]
+                    // Read registers V0 through Vx from memory starting at location I.
+                    let start_address = self.i_register as usize;
+                    // TODO(reece): Do we care about checking for x > 0xF here?
+                    self.print_registers();
+                    for reg in 0..x as usize {
+                        self.data_registers[reg] = self.memory[start_address + reg];
+                    }
+                    self.increment_pc();
                 }
                 _ => unimplemented_opcode(
                     opcode,
