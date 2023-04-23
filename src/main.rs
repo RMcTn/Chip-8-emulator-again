@@ -1,4 +1,7 @@
 use std::time::Duration;
+// TODO(reece): Write an assembler for this as well using this reference
+// http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
+// Add in assembly labels for jumps or loading into register
 
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
@@ -149,7 +152,7 @@ impl Chip8 {
                 let register = second_nibble_first_byte;
                 let register_val = self.data_registers[register as usize];
                 let val_to_add = last_byte(opcode);
-                self.data_registers[register as usize] += val_to_add.wrapping_add(register_val);
+                self.data_registers[register as usize] = val_to_add.wrapping_add(register_val);
                 self.increment_pc();
             }
             0x9 => {
