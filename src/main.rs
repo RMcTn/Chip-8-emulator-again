@@ -157,15 +157,23 @@ impl Chip8 {
             }
             0x8 => {
                 // Always gonna use register_x and register_y here
+                let x_register = last_nibble(first_byte(opcode));
+                let y_register = first_nibble(last_byte(opcode));
                 match last_nibble(last_byte(opcode)) {
                     0 => {
                         // 8xy0 - LD Vx, Vy
                         // Set Vx = Vy.
 
-                        let x_register = last_nibble(first_byte(opcode));
-                        let y_register = first_nibble(last_byte(opcode));
                         self.data_registers[x_register as usize] =
                             self.data_registers[y_register as usize];
+                        self.increment_pc();
+                    }
+                    1 => {
+                        // 8xy1 - OR Vx, Vy
+                        // Set Vx = Vx OR Vy.
+                        let x = self.data_registers[x_register as usize];
+                        let y = self.data_registers[y_register as usize];
+                        self.data_registers[x_register as usize] = x | y;
                         self.increment_pc();
                     }
                     _ => unimplemented_opcode(
