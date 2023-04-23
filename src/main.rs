@@ -23,6 +23,7 @@ struct Chip8 {
     // Holds memory locations. Better name for this?
     i_register: u16,
     display_buffer: [bool; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
+    delay_timer: u8,
 }
 
 fn last_byte(val: u16) -> u8 {
@@ -63,6 +64,10 @@ impl Chip8 {
         let first_nibble_first_byte = first_nibble(first_byte(opcode));
         let second_nibble_first_byte = last_nibble(first_byte(opcode));
         println!("PC: {:X}, op: {:X}", self.program_counter, opcode);
+        let x_register = last_nibble(first_byte(opcode));
+        let x = self.data_registers[x_register as usize];
+        let y_register = first_nibble(last_byte(opcode));
+        let y = self.data_registers[y_register as usize];
         match first_nibble_first_byte {
             0x0 => match last_byte(opcode) {
                 0xE0 => {
@@ -127,14 +132,9 @@ impl Chip8 {
             0x5 => {
                 // 5xy0 - Skip Equal (SE) Vx, Vy
                 // Skip next instruction if Vx = Vy.
-                let x_register = last_nibble(first_byte(opcode));
-                let y_register = first_nibble(last_byte(opcode));
-                let x_val = self.data_registers[x_register as usize];
-                let y_val = self.data_registers[y_register as usize];
-
                 self.increment_pc();
 
-                if x_val == y_val {
+                if x == y {
                     self.increment_pc();
                 }
             }
@@ -157,10 +157,6 @@ impl Chip8 {
             }
             0x8 => {
                 // Always gonna use register_x and register_y here
-                let x_register = last_nibble(first_byte(opcode));
-                let y_register = first_nibble(last_byte(opcode));
-                let x = self.data_registers[x_register as usize];
-                let y = self.data_registers[y_register as usize];
                 match last_nibble(last_byte(opcode)) {
                     0x0 => {
                         // 8xy0 - LD Vx, Vy
@@ -244,14 +240,10 @@ impl Chip8 {
             0x9 => {
                 // 9xy0 - Skip Not Equal (SNE) Vx, Vy
                 // Skip next instruction if Vx != Vy.
-                let x_register = last_nibble(first_byte(opcode));
-                let y_register = first_nibble(last_byte(opcode));
-                let x_val = self.data_registers[x_register as usize];
-                let y_val = self.data_registers[y_register as usize];
 
                 self.increment_pc();
 
-                if x_val != y_val {
+                if x != y {
                     self.increment_pc();
                 }
             }
@@ -267,10 +259,6 @@ impl Chip8 {
                 // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
                 // Sprites are XOR'd onto the screen.
                 // If ANY pixel set to 0 due to the XOR, then a collision has happened.
-                let x_register = last_nibble(first_byte(opcode));
-                let x = self.data_registers[x_register as usize];
-                let y_register = first_nibble(last_byte(opcode));
-                let y = self.data_registers[y_register as usize];
                 let n_bytes = last_nibble(last_byte(opcode));
 
                 // Read n bytes from memory at position I
@@ -312,6 +300,24 @@ impl Chip8 {
 
                 self.increment_pc();
             }
+            0xF => match last_byte(opcode) {
+                0x55 => {
+                    // Fx55 - LD [I], Vx
+                    // Store registers V0 through Vx in memory starting at location I.
+                    unimplemented_opcode(
+                        opcode,
+                        first_nibble_first_byte,
+                        second_nibble_first_byte,
+                        self.program_counter,
+                    )
+                }
+                _ => unimplemented_opcode(
+                    opcode,
+                    first_nibble_first_byte,
+                    second_nibble_first_byte,
+                    self.program_counter,
+                ),
+            },
 
             _ => unimplemented_opcode(
                 opcode,
@@ -380,6 +386,7 @@ fn main() {
         display_buffer: [false; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
         stack_pointer: 0,
         stack: [0; 16],
+        delay_timer: 0,
     };
 
     // Initialize Chip8
