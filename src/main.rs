@@ -333,28 +333,34 @@ impl Chip8 {
                     // Fx55 - LD [I], Vx
                     // Store registers V0 through Vx in memory starting at location I.
                     let start_address = self.i_register as usize;
-                    // TODO(reece): Do we care about checking for x > 0xF here?
-                    // TODO(reece): Going to check for x > 0xF for now as corax+ ROM has
+                    // TODO(reece): Do we care about checking for reg > 0xF here?
+                    // TODO(reece): Going to check for reg > 0xF for now as corax+ ROM has
                     // Vx as 0x30 here for some reason. Don't know if that's a bug on our side
-                    for reg in 0..x as usize {
-                        if x > 0xF {
-                            break;
-                        }
-                        self.memory[start_address + reg] = self.data_registers[reg];
-                    }
+                    // Disabling this for now because there's something weird going on with the
+                    // register data for these, seems to be way bigger than expected
+                    // for reg in 0..x {
+                    //     if reg >= 0xF {
+                    //         break;
+                    //     }
+                    //     self.memory[start_address + reg as usize] =
+                    //         self.data_registers[reg as usize];
+                    // }
                     self.increment_pc();
                 }
                 0x65 => {
                     // Fx65 - LD Vx, [I]
                     // Read registers V0 through Vx from memory starting at location I.
                     let start_address = self.i_register as usize;
-                    // TODO(reece): Do we care about checking for x > 0xF here?
-                    for reg in 0..x as usize {
-                        if x > 0xF {
-                            break;
-                        }
-                        self.data_registers[reg] = self.memory[start_address + reg];
-                    }
+                    // TODO(reece): Do we care about checking for reg > 0xF here?
+                    // Disabling this for now because there's something weird going on with the
+                    // register data for these, seems to be way bigger than expected
+                    // for reg in 0..x {
+                    //     if reg >= 0xF {
+                    //         break;
+                    //     }
+                    //     self.data_registers[reg as usize] =
+                    //         self.memory[start_address + reg as usize];
+                    // }
                     self.increment_pc();
                 }
                 _ => unimplemented_opcode(
