@@ -182,6 +182,12 @@ impl Chip8 {
                         self.data_registers[x_register as usize] = x & y;
                         self.increment_pc();
                     }
+                    3 => {
+                        // 8xy3 - XOR Vx, Vy
+                        // Set Vx = Vx XOR Vy.
+                        self.data_registers[x_register as usize] = x ^ y;
+                        self.increment_pc();
+                    }
                     _ => unimplemented_opcode(
                         opcode,
                         first_nibble_first_byte,
