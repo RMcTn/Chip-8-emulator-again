@@ -304,12 +304,13 @@ impl Chip8 {
                 0x55 => {
                     // Fx55 - LD [I], Vx
                     // Store registers V0 through Vx in memory starting at location I.
-                    unimplemented_opcode(
-                        opcode,
-                        first_nibble_first_byte,
-                        second_nibble_first_byte,
-                        self.program_counter,
-                    )
+                    let start_address = self.i_register as usize;
+                    self.print_registers();
+                    println!("{:X}", x);
+                    // TODO(reece): Do we care about checking for x > 0xF here?
+                    for reg in 0..x as usize {
+                        self.memory[start_address + reg] = self.data_registers[reg];
+                    }
                 }
                 _ => unimplemented_opcode(
                     opcode,
