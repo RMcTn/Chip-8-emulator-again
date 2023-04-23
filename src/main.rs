@@ -187,46 +187,48 @@ impl Chip8 {
                         // 8xy4 - ADD Vx, Vy
                         // Set Vx = Vx + Vy, set VF = carry.
                         let (new_val, overflow_happened) = x.overflowing_add(y);
-                        self.data_registers[0xF] = overflow_happened as u8;
                         self.data_registers[x_register as usize] = new_val;
+                        self.data_registers[0xF] = overflow_happened as u8;
                         self.increment_pc();
                     }
                     0x5 => {
                         // 8xy5 - SUB Vx, Vy
                         // Set Vx = Vx - Vy, set VF = NOT borrow. (VF = Vx > Vy)
+                        let new_val = x.wrapping_sub(y);
+                        self.data_registers[x_register as usize] = new_val;
                         if x > y {
                             self.data_registers[0xF] = 1;
                         } else {
                             self.data_registers[0xF] = 0;
                         }
-                        let new_val = x.wrapping_sub(y);
-                        self.data_registers[x_register as usize] = new_val;
                         self.increment_pc();
                     }
                     0x6 => {
                         // 8xy6 - SHR Vx {, Vy}
                         // Set Vx = Vx SHR 1.
-                        self.data_registers[0xF] = x & 0x1;
+                        // VF is set if LSB is set on Vx
                         self.data_registers[x_register as usize] = x >> 1;
+                        self.data_registers[0xF] = x & 0x1;
                         self.increment_pc();
                     }
                     0x7 => {
                         // 8xy7 - SUBN Vx, Vy
-                        // Set Vx = Vy - Vx, set VF = NOT borrow.
+                        // Set Vx = Vy - Vx, set VF = NOT borrow. (VF = Vx < Vy)
+                        let new_val = y.wrapping_sub(x);
+                        self.data_registers[x_register as usize] = new_val;
                         if y > x {
                             self.data_registers[0xF] = 1;
                         } else {
                             self.data_registers[0xF] = 0;
                         }
-                        let new_val = y.wrapping_sub(x);
-                        self.data_registers[x_register as usize] = new_val;
                         self.increment_pc();
                     }
                     0xE => {
                         // 8xyE - SHL Vx {, Vy}
                         // Set Vx = Vx SHL 1.
-                        self.data_registers[0xF] = x >> 7;
+                        // VF is set if MSB is set on Vx
                         self.data_registers[x_register as usize] = x << 1;
+                        self.data_registers[0xF] = x >> 7;
                         self.increment_pc();
                     }
                     _ => unimplemented_opcode(
