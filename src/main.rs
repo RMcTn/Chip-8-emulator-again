@@ -198,12 +198,12 @@ impl Chip8 {
                     0x5 => {
                         // 8xy5 - SUB Vx, Vy
                         // Set Vx = Vx - Vy, set VF = NOT borrow. (VF = Vx > Vy)
-                        let new_val = x.wrapping_sub(y);
                         if x > y {
                             self.data_registers[0xF] = 1;
                         } else {
                             self.data_registers[0xF] = 0;
                         }
+                        let new_val = x.wrapping_sub(y);
                         self.data_registers[x_register as usize] = new_val;
                         self.increment_pc();
                     }
@@ -212,6 +212,18 @@ impl Chip8 {
                         // Set Vx = Vx SHR 1.
                         self.data_registers[0xF] = x & 0x1;
                         self.data_registers[x_register as usize] = x >> 1;
+                        self.increment_pc();
+                    }
+                    0x7 => {
+                        // 8xy7 - SUBN Vx, Vy
+                        // Set Vx = Vy - Vx, set VF = NOT borrow.
+                        if y > x {
+                            self.data_registers[0xF] = 1;
+                        } else {
+                            self.data_registers[0xF] = 0;
+                        }
+                        let new_val = y.wrapping_sub(x);
+                        self.data_registers[x_register as usize] = new_val;
                         self.increment_pc();
                     }
                     0xE => {
