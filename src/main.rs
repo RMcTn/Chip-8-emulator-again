@@ -120,7 +120,7 @@ impl Chip8 {
 
                 self.increment_pc();
 
-                if self.data_registers[register as usize] == val_to_compare {
+                if self.data_registers[register as usize] != val_to_compare {
                     self.increment_pc();
                 }
             }
