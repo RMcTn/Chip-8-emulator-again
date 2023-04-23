@@ -301,6 +301,12 @@ impl Chip8 {
                 self.increment_pc();
             }
             0xF => match last_byte(opcode) {
+                0x1E => {
+                    // Fx1E - ADD I, Vx
+                    // Set I = I + Vx.
+                    self.i_register = self.i_register.wrapping_add(x as u16);
+                    self.increment_pc();
+                }
                 0x33 => {
                     // Fx33 - LD B, Vx
                     // Store BCD (Binary Coded Decimal) representation of Vx in memory locations I, I+1, and I+2.
