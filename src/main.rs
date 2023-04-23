@@ -155,6 +155,27 @@ impl Chip8 {
                 self.data_registers[register as usize] = val_to_add.wrapping_add(register_val);
                 self.increment_pc();
             }
+            0x8 => {
+                // Always gonna use register_x and register_y here
+                match last_nibble(last_byte(opcode)) {
+                    0 => {
+                        // 8xy0 - LD Vx, Vy
+                        // Set Vx = Vy.
+
+                        let x_register = last_nibble(first_byte(opcode));
+                        let y_register = first_nibble(last_byte(opcode));
+                        self.data_registers[x_register as usize] =
+                            self.data_registers[y_register as usize];
+                        self.increment_pc();
+                    }
+                    _ => unimplemented_opcode(
+                        opcode,
+                        first_nibble_first_byte,
+                        second_nibble_first_byte,
+                        self.program_counter,
+                    ),
+                }
+            }
             0x9 => {
                 // 9xy0 - Skip Not Equal (SNE) Vx, Vy
                 // Skip next instruction if Vx != Vy.
