@@ -52,7 +52,7 @@ impl Chip8 {
         println!("I register: {:X}", self.i_register);
         println!("Stack pointer : {:X}", self.stack_pointer);
         for (register, value) in self.data_registers.iter().enumerate() {
-            println!("Register {:X}: {:X}", register, value);
+            println!("Register {:X}: 0x{:X} ({})", register, value, value);
         }
     }
 
@@ -326,6 +326,7 @@ impl Chip8 {
                     self.memory[self.i_register as usize] = hundreds;
                     self.memory[self.i_register as usize + 1] = tens;
                     self.memory[self.i_register as usize + 2] = ones;
+
                     self.increment_pc();
                 }
                 0x55 => {
