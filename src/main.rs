@@ -314,13 +314,12 @@ impl Chip8 {
                     // Store tens at position I + 1
                     // Store ones at position I + 2
 
-                    // TODO(reece): Don't even know if this is what BCD is
                     let mut x_val = x;
-                    let hundreds = x_val / 100;
-                    x_val %= 100;
-                    let tens = x_val / 10;
-                    x_val %= 10;
-                    let ones = x_val;
+                    let ones = x_val % 10;
+                    x_val /= 10;
+                    let tens = x_val % 10;
+                    x_val /= 10;
+                    let hundreds = x_val;
 
                     self.memory[self.i_register as usize] = hundreds;
                     self.memory[self.i_register as usize + 1] = tens;
@@ -348,6 +347,9 @@ impl Chip8 {
                     let start_address = self.i_register as usize;
                     // TODO(reece): Do we care about checking for x > 0xF here?
                     for reg in 0..x as usize {
+                        if x > 0xF {
+                            break;
+                        }
                         self.data_registers[reg] = self.memory[start_address + reg];
                     }
                     self.increment_pc();
