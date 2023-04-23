@@ -301,6 +301,26 @@ impl Chip8 {
                 self.increment_pc();
             }
             0xF => match last_byte(opcode) {
+                0x33 => {
+                    // Fx33 - LD B, Vx
+                    // Store BCD (Binary Coded Decimal) representation of Vx in memory locations I, I+1, and I+2.
+                    // Store hundreds at position I
+                    // Store tens at position I + 1
+                    // Store ones at position I + 2
+
+                    // TODO(reece): Don't even know if this is what BCD is
+                    let mut x_val = x;
+                    let hundreds = x_val / 100;
+                    x_val %= 100;
+                    let tens = x_val / 10;
+                    x_val %= 10;
+                    let ones = x_val;
+
+                    self.memory[self.i_register as usize] = hundreds;
+                    self.memory[self.i_register as usize + 1] = tens;
+                    self.memory[self.i_register as usize + 2] = ones;
+                    self.increment_pc();
+                }
                 0x55 => {
                     // Fx55 - LD [I], Vx
                     // Store registers V0 through Vx in memory starting at location I.
