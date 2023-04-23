@@ -196,6 +196,18 @@ impl Chip8 {
                         self.data_registers[x_register as usize] = new_val;
                         self.increment_pc();
                     }
+                    5 => {
+                        // 8xy5 - SUB Vx, Vy
+                        // Set Vx = Vx - Vy, set VF = NOT borrow. (VF = Vx > Vy)
+                        let new_val = x.wrapping_sub(y);
+                        if x > y {
+                            self.data_registers[0xF] = 1;
+                        } else {
+                            self.data_registers[0xF] = 0;
+                        }
+                        self.data_registers[x_register as usize] = new_val;
+                        self.increment_pc();
+                    }
                     _ => unimplemented_opcode(
                         opcode,
                         first_nibble_first_byte,
