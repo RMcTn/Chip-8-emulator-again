@@ -188,6 +188,14 @@ impl Chip8 {
                         self.data_registers[x_register as usize] = x ^ y;
                         self.increment_pc();
                     }
+                    4 => {
+                        // 8xy4 - ADD Vx, Vy
+                        // Set Vx = Vx + Vy, set VF = carry.
+                        let (new_val, overflow_happened) = x.overflowing_add(y);
+                        self.data_registers[0xF] = overflow_happened as u8;
+                        self.data_registers[x_register as usize] = new_val;
+                        self.increment_pc();
+                    }
                     _ => unimplemented_opcode(
                         opcode,
                         first_nibble_first_byte,
