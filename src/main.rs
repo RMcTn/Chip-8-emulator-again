@@ -306,7 +306,12 @@ impl Chip8 {
                     // Store registers V0 through Vx in memory starting at location I.
                     let start_address = self.i_register as usize;
                     // TODO(reece): Do we care about checking for x > 0xF here?
+                    // TODO(reece): Going to check for x > 0xF for now as corax+ ROM has
+                    // Vx as 0x30 here for some reason. Don't know if that's a bug on our side
                     for reg in 0..x as usize {
+                        if x > 0xF {
+                            break;
+                        }
                         self.memory[start_address + reg] = self.data_registers[reg];
                     }
                     self.increment_pc();
@@ -316,7 +321,6 @@ impl Chip8 {
                     // Read registers V0 through Vx from memory starting at location I.
                     let start_address = self.i_register as usize;
                     // TODO(reece): Do we care about checking for x > 0xF here?
-                    self.print_registers();
                     for reg in 0..x as usize {
                         self.data_registers[reg] = self.memory[start_address + reg];
                     }
