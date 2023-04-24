@@ -50,6 +50,10 @@ impl Chip8 {
         self.program_counter += 2;
     }
 
+    fn clear_keys(&mut self) {
+        self.keys = [false; 16];
+    }
+
     fn print_registers(&self) {
         println!("Program Counter: {:X}", self.program_counter);
         println!("I register: {:X}", self.i_register);
@@ -59,8 +63,9 @@ impl Chip8 {
         }
     }
 
-    fn process_next_instruction(&mut self) {
+    fn process_next_instruction(&mut self, keys: [bool; 16]) {
         // Opcodes and most documentation taken from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
+        self.keys = keys;
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
             | self.memory[self.program_counter + 1] as u16;
 
@@ -317,7 +322,7 @@ impl Chip8 {
                 0x9E => {
                     // Ex9E - SKP Vx
                     // Skip next instruction if key with the value of Vx is pressed.
-                    let key_value = x_register;
+                    let key_value = self.data_registers[x_register as usize];
                     if self.is_key_pressed(key_value) {
                         self.increment_pc();
                     }
@@ -326,7 +331,7 @@ impl Chip8 {
                 0xA1 => {
                     // ExA1 - SKNP Vx
                     // Skip next instruction if key with the value of Vx is not pressed.
-                    let key_value = x_register;
+                    let key_value = self.data_registers[x_register as usize];
                     if !self.is_key_pressed(key_value) {
                         self.increment_pc();
                     }
@@ -503,6 +508,7 @@ fn main() {
     let mut step_once = true;
     let scale = 8;
     'running: loop {
+        let mut keys = [false; 16];
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -542,12 +548,36 @@ fn main() {
                         }
                     }
                 }
+                Event::KeyDown {
+                    keycode: Some(keycode),
+                    ..
+                } => match keycode {
+                    // TODO(reece): Have some better mappings/configurable later. Just making it
+                    // work for now
+                    Keycode::Num0 => keys[0x0] = true,
+                    Keycode::Num1 => keys[0x1] = true,
+                    Keycode::Num2 => keys[0x2] = true,
+                    Keycode::Num3 => keys[0x3] = true,
+                    Keycode::Num4 => keys[0x4] = true,
+                    Keycode::Num5 => keys[0x5] = true,
+                    Keycode::Num6 => keys[0x6] = true,
+                    Keycode::Num7 => keys[0x7] = true,
+                    Keycode::Num8 => keys[0x8] = true,
+                    Keycode::Num9 => keys[0x9] = true,
+                    Keycode::A => keys[0xA] = true,
+                    Keycode::B => keys[0xB] = true,
+                    Keycode::C => keys[0xC] = true,
+                    Keycode::D => keys[0xD] = true,
+                    Keycode::E => keys[0xE] = true,
+                    Keycode::F => keys[0xF] = true,
+                    _ => { /* Intentionally left blank. AKA these keys don't do anything */ }
+                },
                 _ => {}
             }
         }
 
         if executing || step_once {
-            chip.process_next_instruction();
+            chip.process_next_instruction(keys);
             if step_once {
                 step_once = false;
                 executing = false;
