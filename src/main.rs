@@ -26,6 +26,7 @@ struct Chip8 {
     i_register: u16,
     display_buffer: [bool; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
     delay_timer: u8,
+    keys: [bool; 16],
 }
 
 fn last_byte(val: u16) -> u8 {
@@ -312,6 +313,32 @@ impl Chip8 {
 
                 self.increment_pc();
             }
+            0xE => match last_byte(opcode) {
+                0x9E => {
+                    // Ex9E - SKP Vx
+                    // Skip next instruction if key with the value of Vx is pressed.
+                    let key_value = x_register;
+                    if self.is_key_pressed(key_value) {
+                        self.increment_pc();
+                    }
+                    self.increment_pc();
+                }
+                0xA1 => {
+                    // ExA1 - SKNP Vx
+                    // Skip next instruction if key with the value of Vx is not pressed.
+                    let key_value = x_register;
+                    if !self.is_key_pressed(key_value) {
+                        self.increment_pc();
+                    }
+                    self.increment_pc();
+                }
+                _ => unimplemented_opcode(
+                    opcode,
+                    first_nibble_first_byte,
+                    second_nibble_first_byte,
+                    self.program_counter,
+                ),
+            },
             0xF => match last_byte(opcode) {
                 0x07 => {
                     // Fx07 - LD Vx, DT
@@ -405,6 +432,10 @@ impl Chip8 {
         }
         return false;
     }
+
+    fn is_key_pressed(&self, key_value: u8) -> bool {
+        return self.keys[key_value as usize];
+    }
 }
 
 const PROGRAM_OFFSET: usize = 0x200;
@@ -453,6 +484,7 @@ fn main() {
         stack_pointer: 0,
         stack: [0; 16],
         delay_timer: 0,
+        keys: [false; 16],
     };
 
     // Initialize Chip8
