@@ -2,6 +2,8 @@ use std::time::Duration;
 // TODO(reece): Write an assembler for this as well using this reference
 // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
 // Add in assembly labels for jumps or loading into register
+//
+// bunch of useful ROMs https://github.com/kripod/chip8-roms
 
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
@@ -254,6 +256,14 @@ impl Chip8 {
                 // Set I = nnn.
                 let val_to_load = opcode & 0x0FFF;
                 self.i_register = val_to_load;
+                self.increment_pc();
+            }
+            0xC => {
+                // Cxkk - RND Vx, byte
+                // Set Vx = random byte AND kk.
+                let val_to_and = last_byte(opcode);
+                let rand_val: u8 = rand::random();
+                self.data_registers[x_register as usize] = rand_val & val_to_and;
                 self.increment_pc();
             }
             0xD => {
