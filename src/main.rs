@@ -305,8 +305,6 @@ impl Chip8 {
                     for bit_position in 0..8 {
                         let bit_is_set = ((byte >> 7 - bit_position) & 0x1) > 0;
 
-                        // TODO(reece): Pixel wrapping
-
                         if Chip8::set_pixel(
                             self.display_buffer.as_mut_slice(),
                             (x + bit_position) as usize,
@@ -319,6 +317,8 @@ impl Chip8 {
                 }
                 if !was_collision {
                     self.data_registers[0xF] = 0;
+                } else {
+                    self.data_registers[0xF] = 1;
                 }
 
                 self.increment_pc();
@@ -760,7 +760,8 @@ const FONT_SPRITES: [u8; FONT_SPRITE_LENGTH_IN_BYTES * NUMBER_OF_FONT_SPRITES] =
 ];
 
 fn idx_for_display(x: u8, y: u8) -> usize {
-    x as usize + (y as usize * CHIP_DISPLAY_WIDTH_IN_PIXELS)
+    (x as usize % CHIP_DISPLAY_WIDTH_IN_PIXELS)
+        + ((y as usize % CHIP_DISPLAY_HEIGHT_IN_PIXELS) * CHIP_DISPLAY_WIDTH_IN_PIXELS)
 }
 
 fn draw_display<T: sdl2::render::RenderTarget>(
