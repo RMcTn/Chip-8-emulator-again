@@ -66,6 +66,12 @@ impl Chip8 {
     fn process_next_instruction(&mut self, keys: [bool; 16]) {
         // Opcodes and most documentation taken from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         self.keys = keys;
+        if self.delay_timer != 0 {
+            self.delay_timer -= 1;
+        }
+        // TODO(reece): Add timings to each instruction so we can get accurate emulation?
+        // We'd want an upper bound of how long we run before going to the next frame, instead of
+        // running exactly N frames each time (would be way more accurate)
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
             | self.memory[self.program_counter + 1] as u16;
 
@@ -509,7 +515,7 @@ fn main() {
     let mut last_frame_time = std::time::Instant::now();
     let target_frame_time = Duration::from_millis((1.0 / 30.0 * 1000.0) as u64);
 
-    let instructions_per_frame = 60;
+    let instructions_per_frame = 10;
     let mut keys = [false; 16];
     'running: loop {
         for event in event_pump.poll_iter() {
