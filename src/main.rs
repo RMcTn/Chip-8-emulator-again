@@ -284,8 +284,6 @@ impl Chip8 {
                 let bytes_to_draw = &self.memory
                     [memory_location as usize..(memory_location as usize + n_bytes as usize)];
 
-                dbg!(n_bytes);
-                dbg!(bytes_to_draw);
                 // Display those bytes as sprites at Vx, Vy
                 // Sprites should be XOR'd into the display buffer
                 let mut was_collision = false;
@@ -507,6 +505,9 @@ fn main() {
     let mut executing = true;
     let mut step_once = true;
     let scale = 8;
+
+    let mut last_frame_time = std::time::Instant::now();
+    let target_frame_time = Duration::from_millis((1.0 / 30.0 * 1000.0) as u64);
     'running: loop {
         let mut keys = [false; 16];
         for event in event_pump.poll_iter() {
@@ -570,7 +571,7 @@ fn main() {
                     Keycode::D => keys[0xD] = true,
                     Keycode::E => keys[0xE] = true,
                     Keycode::F => keys[0xF] = true,
-                    _ => { /* Intentionally left blank. AKA these keys don't do anything */ }
+                    _ => { /* Left blank intentionally. These keys do nothing */ }
                 },
                 _ => {}
             }
@@ -606,7 +607,17 @@ fn main() {
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.present();
-        // ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+
+        let current_frame_time = std::time::Instant::now();
+
+        let latest_frame_time = current_frame_time - last_frame_time;
+        last_frame_time = current_frame_time;
+
+        let time_to_sleep = target_frame_time.saturating_sub(latest_frame_time);
+
+        if !time_to_sleep.is_zero() {
+            std::thread::sleep(time_to_sleep);
+        }
     }
 }
 
