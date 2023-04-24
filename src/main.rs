@@ -508,6 +508,8 @@ fn main() {
 
     let mut last_frame_time = std::time::Instant::now();
     let target_frame_time = Duration::from_millis((1.0 / 30.0 * 1000.0) as u64);
+
+    let instructions_per_frame = 60;
     'running: loop {
         let mut keys = [false; 16];
         for event in event_pump.poll_iter() {
@@ -578,7 +580,15 @@ fn main() {
         }
 
         if executing || step_once {
-            chip.process_next_instruction(keys);
+            // TODO(reece): Don't like how we're doing this right now. Only displaying after n
+            // instructions executed, input only being updated after n frames.
+            // Seems like a crap thing we've done here, but boy is it fast :)
+            for _ in 0..=instructions_per_frame {
+                chip.process_next_instruction(keys);
+                if step_once {
+                    break;
+                }
+            }
             if step_once {
                 step_once = false;
                 executing = false;
