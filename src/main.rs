@@ -538,7 +538,7 @@ fn main() {
                     println!("Stepping once");
                 }
                 Event::KeyDown {
-                    keycode: Some(Keycode::D),
+                    keycode: Some(Keycode::L),
                     ..
                 } => {
                     dbg!(chip.display_buffer);
