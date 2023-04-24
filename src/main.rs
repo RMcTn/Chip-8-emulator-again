@@ -374,6 +374,16 @@ impl Chip8 {
                     self.i_register = self.i_register.wrapping_add(x as u16);
                     self.increment_pc();
                 }
+                0x29 => {
+                    // Fx29 - LD F, Vx
+                    // Set I = location of sprite for digit Vx.
+                    // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx
+
+                    // TODO(reece): Extract font_start_location constant out
+                    let sprite_location = FONT_SPRITE_LENGTH_IN_BYTES * FONT_START_LOCATION;
+                    self.i_register = sprite_location;
+                    self.increment_pc();
+                }
                 0x33 => {
                     // Fx33 - LD B, Vx
                     // Store BCD (Binary Coded Decimal) representation of Vx in memory locations I, I+1, and I+2.
@@ -508,7 +518,7 @@ fn main() {
 
     // Fonts sit at the start of memory
     for (i, byte) in FONT_SPRITES.iter().enumerate() {
-        chip.memory[i] = *byte;
+        chip.memory[i + FONT_START_LOCATION as usize] = *byte;
     }
 
     for (i, byte) in rom_bytes.iter().enumerate() {
@@ -523,7 +533,7 @@ fn main() {
     let mut last_frame_time = std::time::Instant::now();
     let target_frame_time = Duration::from_millis((1.0 / 30.0 * 1000.0) as u64);
 
-    let instructions_per_frame = 10;
+    let instructions_per_frame = 30;
     let mut keys = [false; 16];
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -655,6 +665,7 @@ fn unimplemented_opcode(opcode: u16, first_nibble: u8, second_nibble: u8, progra
 }
 
 const FONT_SPRITE_LENGTH_IN_BYTES: usize = 5;
+const FONT_START_LOCATION: u16 = 0;
 const NUMBER_OF_FONT_SPRITES: usize = 16; // 0 - F
 
 #[rustfmt::skip]
