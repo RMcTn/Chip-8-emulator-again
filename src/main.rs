@@ -313,6 +313,18 @@ impl Chip8 {
                 self.increment_pc();
             }
             0xF => match last_byte(opcode) {
+                0x07 => {
+                    // Fx07 - LD Vx, DT
+                    // Set Vx = delay timer value.
+                    self.data_registers[x_register as usize] = self.delay_timer;
+                    self.increment_pc();
+                }
+                0x15 => {
+                    // Fx15 - LD DT, Vx
+                    // Set delay timer = Vx.
+                    self.delay_timer = x;
+                    self.increment_pc();
+                }
                 0x1E => {
                     // Fx1E - ADD I, Vx
                     // Set I = I + Vx.
