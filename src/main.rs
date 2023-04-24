@@ -503,7 +503,7 @@ fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut executing = true;
-    let mut step_once = true;
+    let mut step_once = false;
     let scale = 8;
 
     let mut last_frame_time = std::time::Instant::now();
