@@ -5,7 +5,7 @@ use std::time::Duration;
 //
 // bunch of useful ROMs https://github.com/kripod/chip8-roms
 
-use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
+use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect, render::Canvas};
 
 const CHIP_DISPLAY_WIDTH_IN_PIXELS: usize = 64;
 const CHIP_DISPLAY_HEIGHT_IN_PIXELS: usize = 32;
@@ -510,8 +510,8 @@ fn main() {
     let target_frame_time = Duration::from_millis((1.0 / 30.0 * 1000.0) as u64);
 
     let instructions_per_frame = 60;
+    let mut keys = [false; 16];
     'running: loop {
-        let mut keys = [false; 16];
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -575,16 +575,39 @@ fn main() {
                     Keycode::F => keys[0xF] = true,
                     _ => { /* Left blank intentionally. These keys do nothing */ }
                 },
+                Event::KeyUp {
+                    keycode: Some(keycode),
+                    ..
+                } => match keycode {
+                    // TODO(reece): Have some better mappings/configurable later. Just making it
+                    // work for now
+                    Keycode::Num0 => keys[0x0] = false,
+                    Keycode::Num1 => keys[0x1] = false,
+                    Keycode::Num2 => keys[0x2] = false,
+                    Keycode::Num3 => keys[0x3] = false,
+                    Keycode::Num4 => keys[0x4] = false,
+                    Keycode::Num5 => keys[0x5] = false,
+                    Keycode::Num6 => keys[0x6] = false,
+                    Keycode::Num7 => keys[0x7] = false,
+                    Keycode::Num8 => keys[0x8] = false,
+                    Keycode::Num9 => keys[0x9] = false,
+                    Keycode::A => keys[0xA] = false,
+                    Keycode::B => keys[0xB] = false,
+                    Keycode::C => keys[0xC] = false,
+                    Keycode::D => keys[0xD] = false,
+                    Keycode::E => keys[0xE] = false,
+                    Keycode::F => keys[0xF] = false,
+                    _ => { /* Left blank intentionally. These keys do nothing */ }
+                },
                 _ => {}
             }
         }
 
         if executing || step_once {
-            // TODO(reece): Don't like how we're doing this right now. Only displaying after n
-            // instructions executed, input only being updated after n frames.
-            // Seems like a crap thing we've done here, but boy is it fast :)
+            // TODO(reece): Don't like how we're doing this right now. Input only being updated after n frames.
             for _ in 0..=instructions_per_frame {
                 chip.process_next_instruction(keys);
+                draw_display(&mut canvas, &chip.display_buffer, scale);
                 if step_once {
                     break;
                 }
@@ -595,28 +618,7 @@ fn main() {
                 chip.print_registers();
             }
         }
-
-        canvas.clear();
-        for x in 0..CHIP_DISPLAY_WIDTH_IN_PIXELS {
-            for y in 0..CHIP_DISPLAY_HEIGHT_IN_PIXELS {
-                let color = match chip.display_buffer[idx_for_display(x as u8, y as u8)] {
-                    false => Color::RGB(0, 0, 0),
-                    true => Color::RGB(120, 64, 127),
-                };
-                canvas.set_draw_color(color);
-                canvas
-                    .fill_rect(Rect::new(
-                        x as i32 * scale,
-                        y as i32 * scale,
-                        1 * scale as u32,
-                        1 * scale as u32,
-                    ))
-                    .unwrap();
-            }
-        }
-
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.present();
+        draw_display(&mut canvas, &chip.display_buffer, scale);
 
         let current_frame_time = std::time::Instant::now();
 
@@ -745,4 +747,31 @@ const FONT_SPRITES: [u8; FONT_SPRITE_LENGTH_IN_BYTES * NUMBER_OF_FONT_SPRITES] =
 
 fn idx_for_display(x: u8, y: u8) -> usize {
     x as usize + (y as usize * CHIP_DISPLAY_WIDTH_IN_PIXELS)
+}
+
+fn draw_display<T: sdl2::render::RenderTarget>(
+    canvas: &mut Canvas<T>,
+    display_buffer: &[bool],
+    scale: i32,
+) {
+    canvas.clear();
+    for x in 0..CHIP_DISPLAY_WIDTH_IN_PIXELS {
+        for y in 0..CHIP_DISPLAY_HEIGHT_IN_PIXELS {
+            let color = match display_buffer[idx_for_display(x as u8, y as u8)] {
+                false => Color::RGB(0, 0, 0),
+                true => Color::RGB(120, 64, 127),
+            };
+            canvas.set_draw_color(color);
+            canvas
+                .fill_rect(Rect::new(
+                    x as i32 * scale,
+                    y as i32 * scale,
+                    1 * scale as u32,
+                    1 * scale as u32,
+                ))
+                .unwrap();
+        }
+    }
+    canvas.set_draw_color(Color::RGB(0, 0, 0));
+    canvas.present();
 }
