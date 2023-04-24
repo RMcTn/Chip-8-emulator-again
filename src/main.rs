@@ -470,7 +470,7 @@ fn main() {
     let file_path = if args.len() >= 2 {
         &args[1]
     } else {
-        "test_opcode.ch8"
+        "roms/test_opcode.ch8"
     };
 
     // Test ROM from https://github.com/corax89/chip8-test-rom
