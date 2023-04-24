@@ -26,6 +26,7 @@ struct Chip8 {
     i_register: u16,
     display_buffer: [bool; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS],
     delay_timer: u8,
+    sound_timer: u8,
     keys: [bool; 16],
 }
 
@@ -361,6 +362,12 @@ impl Chip8 {
                     self.delay_timer = x;
                     self.increment_pc();
                 }
+                0x18 => {
+                    // Fx18 - LD ST, Vx
+                    // Set sound timer = Vx.
+                    self.sound_timer = x;
+                    self.increment_pc();
+                }
                 0x1E => {
                     // Fx1E - ADD I, Vx
                     // Set I = I + Vx.
@@ -493,6 +500,7 @@ fn main() {
         stack_pointer: 0,
         stack: [0; 16],
         delay_timer: 0,
+        sound_timer: 0,
         keys: [false; 16],
     };
 
