@@ -441,6 +441,9 @@ impl Chip8 {
                     // Fx18 - LD ST, Vx
                     // Set sound timer = Vx.
                     self.sound_timer = x;
+                    if self.sound_timer > 0 {
+                        self.should_play_sound = true;
+                    }
                     self.increment_pc();
                     return 45;
                 }
