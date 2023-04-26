@@ -73,6 +73,12 @@ impl Chip8 {
 
     fn process_a_frame(&mut self, keys: [bool; 16], processing_time_target: u32) {
         let mut elapsed_time = 0;
+        if self.delay_timer != 0 {
+            self.delay_timer -= 1;
+        }
+        if self.sound_timer != 0 {
+            self.sound_timer -= 1;
+        }
 
         while elapsed_time < processing_time_target {
             let processing_time = self.process_next_instruction(keys);
@@ -90,12 +96,6 @@ impl Chip8 {
     fn process_next_instruction(&mut self, keys: [bool; 16]) -> TimeTakenInMicroSeconds {
         // Opcodes and most documentation taken from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         self.keys = keys;
-        if self.delay_timer != 0 {
-            self.delay_timer -= 1;
-        }
-        if self.sound_timer != 0 {
-            self.sound_timer -= 1;
-        }
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
             | self.memory[self.program_counter + 1] as u16;
 
