@@ -13,9 +13,9 @@ use sdl2::{
     audio::{AudioCallback, AudioSpecDesired},
     event::Event,
     keyboard::Keycode,
-    pixels::Color,
+    pixels::{Color, PixelFormatEnum},
     rect::Rect,
-    render::Canvas,
+    render::{Canvas, Texture},
 };
 
 struct SquareWave {
@@ -80,6 +80,15 @@ fn main() {
     canvas.clear();
     canvas.present();
 
+    let texture_creator = canvas.texture_creator();
+    let mut texture = texture_creator
+        .create_texture_streaming(
+            PixelFormatEnum::RGB24,
+            chip::CHIP_DISPLAY_WIDTH_IN_PIXELS as u32,
+            chip::CHIP_DISPLAY_HEIGHT_IN_PIXELS as u32,
+        )
+        .unwrap();
+
     let args: Vec<String> = std::env::args().collect();
 
     let file_path = if args.len() >= 2 {
@@ -97,7 +106,6 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut executing = true;
     let mut step_once = false;
-    let scale = 8;
 
     let mut last_frame_time = std::time::Instant::now();
     let target_frame_time = Duration::from_millis((1.0 / 60.0 * 1000.0) as u64);
@@ -210,16 +218,16 @@ fn main() {
             }
         }
 
-        // TODO(reece): Score isn't updating for Breakout or Pong, but the BCD test passes on
-        // 0xFx33 test for Corax+ opcode test rom
-        // TODO(reece): There's some flickering, super noticable with breakout game.
-        draw_display(&mut canvas, &chip.display_buffer, scale);
-
         if chip.should_play_sound() {
             device.resume();
         } else {
             device.pause();
         }
+
+        // TODO(reece): Score isn't updating for Breakout or Pong, but the BCD test passes on
+        // 0xFx33 test for Corax+ opcode test rom
+        // TODO(reece): There's some flickering, super noticable with breakout game.
+        draw_display(&mut canvas, &mut texture, &chip.display_buffer);
 
         let current_frame_time = std::time::Instant::now();
 
@@ -236,27 +244,29 @@ fn main() {
 
 fn draw_display<T: sdl2::render::RenderTarget>(
     canvas: &mut Canvas<T>,
+    texture: &mut Texture,
     display_buffer: &[bool],
-    scale: i32,
 ) {
-    canvas.clear();
-    for x in 0..CHIP_DISPLAY_WIDTH_IN_PIXELS {
-        for y in 0..CHIP_DISPLAY_HEIGHT_IN_PIXELS {
-            let color = match display_buffer[idx_for_display(x as u8, y as u8)] {
-                false => Color::RGB(0, 0, 0),
-                true => Color::RGB(120, 64, 127),
-            };
-            canvas.set_draw_color(color);
-            canvas
-                .fill_rect(Rect::new(
-                    x as i32 * scale,
-                    y as i32 * scale,
-                    scale as u32,
-                    scale as u32,
-                ))
-                .unwrap();
-        }
-    }
+    texture
+        .with_lock(None, |buffer: &mut [u8], pitch: usize| {
+            for x in 0..CHIP_DISPLAY_WIDTH_IN_PIXELS {
+                for y in 0..CHIP_DISPLAY_HEIGHT_IN_PIXELS {
+                    let display_buffer_idx = idx_for_display(x as u8, y as u8);
+                    let color = match display_buffer[display_buffer_idx] {
+                        false => Color::RGB(0, 0, 0),
+                        true => Color::RGB(255, 255, 255),
+                    };
+
+                    let texture_idx = y * pitch + x * 3;
+                    let rgb = color.rgb();
+                    buffer[texture_idx] = rgb.0;
+                    buffer[texture_idx + 1] = rgb.1;
+                    buffer[texture_idx + 2] = rgb.2;
+                }
+            }
+        })
+        .unwrap();
+    canvas.copy(&texture, None, None).unwrap();
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.present();
 }
