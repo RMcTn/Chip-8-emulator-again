@@ -5,7 +5,14 @@ use std::time::Duration;
 //
 // bunch of useful ROMs https://github.com/kripod/chip8-roms
 
-use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect, render::Canvas};
+use sdl2::{
+    audio::{AudioCallback, AudioSpecDesired},
+    event::Event,
+    keyboard::Keycode,
+    pixels::Color,
+    rect::Rect,
+    render::Canvas,
+};
 
 const CHIP_DISPLAY_WIDTH_IN_PIXELS: usize = 64;
 const CHIP_DISPLAY_HEIGHT_IN_PIXELS: usize = 32;
@@ -60,6 +67,10 @@ impl Chip8 {
         }
     }
 
+    fn should_play_sound(&self) -> bool {
+        return self.sound_timer > 0;
+    }
+
     fn process_a_frame(&mut self, keys: [bool; 16], processing_time_target: u32) {
         let mut elapsed_time = 0;
 
@@ -76,6 +87,9 @@ impl Chip8 {
         self.keys = keys;
         if self.delay_timer != 0 {
             self.delay_timer -= 1;
+        }
+        if self.sound_timer != 0 {
+            self.sound_timer -= 1;
         }
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
             | self.memory[self.program_counter + 1] as u16;
@@ -496,10 +510,50 @@ impl Chip8 {
 
 const PROGRAM_OFFSET: usize = 0x200;
 
+struct SquareWave {
+    phase_inc: f32,
+    phase: f32,
+    volume: f32,
+}
+
+impl AudioCallback for SquareWave {
+    type Channel = f32;
+
+    fn callback(&mut self, out: &mut [f32]) {
+        // Generate a square wave
+        for x in out.iter_mut() {
+            *x = if self.phase <= 0.5 {
+                self.volume
+            } else {
+                -self.volume
+            };
+            self.phase = (self.phase + self.phase_inc) % 1.0;
+        }
+    }
+}
+
 fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
+    let audio_subsystem = sdl_context.audio().unwrap();
 
+    // Audio example taken straight from the rust sdl2 docs
+    let desired_spec = AudioSpecDesired {
+        freq: Some(44100),
+        channels: Some(1), // mono
+        samples: None,     // default sample size
+    };
+
+    let device = audio_subsystem
+        .open_playback(None, &desired_spec, |spec| {
+            // initialize the audio callback
+            SquareWave {
+                phase_inc: 440.0 / spec.freq as f32,
+                phase: 0.0,
+                volume: 0.25,
+            }
+        })
+        .unwrap();
     const DISPLAY_WIDTH_IN_PIXELS: usize = 1024;
     const DISPLAY_HEIGHT_IN_PIXELS: usize = 768;
     let window = video_subsystem
@@ -669,9 +723,15 @@ fn main() {
                 );
             }
         }
-        // TODO(reece): Add sound support
+
         // TODO(reece): There's some flickering, super noticable with breakout game.
         draw_display(&mut canvas, &chip.display_buffer, scale);
+
+        if chip.should_play_sound() {
+            device.resume();
+        } else {
+            device.pause();
+        }
 
         let current_frame_time = std::time::Instant::now();
 
