@@ -571,9 +571,9 @@ fn main() {
     let scale = 8;
 
     let mut last_frame_time = std::time::Instant::now();
-    let target_frame_time = Duration::from_millis((1.0 / 30.0 * 1000.0) as u64);
+    let target_frame_time = Duration::from_millis((1.0 / 60.0 * 1000.0) as u64);
+    let target_chip_frame_time = Duration::from_millis((1.0 / 60.0 * 1000.0) as u64);
 
-    let instructions_per_frame = 30;
     let mut keys = [false; 16];
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -668,17 +668,18 @@ fn main() {
         }
 
         if executing || step_once {
-            let processing_time_target = (1.0 / 60.0 * 1000.0 * 1000.0) as u32;
-            chip.process_a_bunch(keys, processing_time_target);
-            draw_display(&mut canvas, &chip.display_buffer, scale);
             if step_once {
-                break;
-            }
-            if step_once {
+                chip.process_next_instruction(keys);
                 step_once = false;
                 executing = false;
                 chip.print_registers();
+            } else {
+                chip.process_a_bunch(
+                    keys,
+                    target_chip_frame_time.as_micros() as u32, // Should be a safe cast, unless someone wants a ridiculously large amount of processing time for a frame
+                );
             }
+            draw_display(&mut canvas, &chip.display_buffer, scale);
         }
         draw_display(&mut canvas, &chip.display_buffer, scale);
 
