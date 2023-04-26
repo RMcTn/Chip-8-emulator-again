@@ -33,6 +33,7 @@ struct Chip8 {
     delay_timer: u8,
     sound_timer: u8,
     keys: [bool; 16],
+    should_play_sound: bool,
 }
 
 fn last_byte(val: u16) -> u8 {
@@ -68,7 +69,7 @@ impl Chip8 {
     }
 
     fn should_play_sound(&self) -> bool {
-        return self.sound_timer > 0;
+        return self.should_play_sound;
     }
 
     fn process_a_frame(&mut self, keys: [bool; 16], processing_time_target: u32) {
@@ -77,7 +78,10 @@ impl Chip8 {
             self.delay_timer -= 1;
         }
         if self.sound_timer != 0 {
+            self.should_play_sound = true;
             self.sound_timer -= 1;
+        } else {
+            self.should_play_sound = false;
         }
 
         while elapsed_time < processing_time_target {
@@ -618,6 +622,7 @@ fn main() {
         delay_timer: 0,
         sound_timer: 0,
         keys: [false; 16],
+        should_play_sound: false,
     };
 
     // Initialize Chip8
