@@ -16,8 +16,6 @@ struct Chip8 {
     // uppermost 256 bytes (0xF00-0xFFF) potentially reserved for display refresh
     // 96 bytes down from that (0xEA0-0xEFF) is call stack and other internal usage stuff
     //
-    // was this meant to be i_register or something?
-    address_register: u16,
     data_registers: [u8; 16],
     program_counter: usize,
     stack: [u16; 16],
@@ -310,8 +308,8 @@ impl Chip8 {
 
                 // Read n bytes from memory at position I
                 let memory_location = self.i_register as usize;
-                let bytes_to_draw = &self.memory
-                    [memory_location as usize..(memory_location as usize + n_bytes as usize)];
+                let bytes_to_draw =
+                    &self.memory[memory_location..(memory_location + n_bytes as usize)];
 
                 // Display those bytes as sprites at Vx, Vy
                 // Sprites should be XOR'd into the display buffer
@@ -534,7 +532,6 @@ fn main() {
 
     let mut chip = Chip8 {
         memory: [0; 4096],
-        address_register: 0,
         data_registers: [0; 16],
         program_counter: PROGRAM_OFFSET,
         i_register: 0,
@@ -550,7 +547,7 @@ fn main() {
 
     // Fonts sit at the start of memory
     for (i, byte) in FONT_SPRITES.iter().enumerate() {
-        chip.memory[i + FONT_START_LOCATION as usize] = *byte;
+        chip.memory[i + FONT_START_LOCATION] = *byte;
     }
 
     for (i, byte) in rom_bytes.iter().enumerate() {
