@@ -668,8 +668,9 @@ fn main() {
                     target_chip_frame_time.as_micros() as u32, // Should be a safe cast, unless someone wants a ridiculously large amount of processing time for a frame
                 );
             }
-            draw_display(&mut canvas, &chip.display_buffer, scale);
         }
+        // TODO(reece): Add sound support
+        // TODO(reece): There's some flickering, super noticable with breakout game.
         draw_display(&mut canvas, &chip.display_buffer, scale);
 
         let current_frame_time = std::time::Instant::now();
@@ -820,8 +821,8 @@ fn draw_display<T: sdl2::render::RenderTarget>(
                 .fill_rect(Rect::new(
                     x as i32 * scale,
                     y as i32 * scale,
-                    1 * scale as u32,
-                    1 * scale as u32,
+                    scale as u32,
+                    scale as u32,
                 ))
                 .unwrap();
         }
