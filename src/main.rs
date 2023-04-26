@@ -46,13 +46,11 @@ fn last_nibble(val: u8) -> u8 {
     val & 0x0F
 }
 
+type TimeTakenInMicroSeconds = u32;
+
 impl Chip8 {
     fn increment_pc(&mut self) {
         self.program_counter += 2;
-    }
-
-    fn clear_keys(&mut self) {
-        self.keys = [false; 16];
     }
 
     fn print_registers(&self) {
@@ -64,13 +62,25 @@ impl Chip8 {
         }
     }
 
-    fn process_next_instruction(&mut self, keys: [bool; 16]) {
+    fn process_a_bunch(&mut self, keys: [bool; 16], processing_time_target: u32) {
+        let mut elapsed_time = 0;
+
+        while elapsed_time < processing_time_target {
+            elapsed_time += self.process_next_instruction(keys);
+        }
+    }
+
+    /// Performs the next instruction at the current program counter.
+    /// Returns the AVERAGE micro seconds taken to execute that instruction (Does not accurately
+    /// emulate timings. See <https://jackson-s.me/2019/07/13/Chip-8-Instruction-Scheduling-and-Frequency.html>)
+    fn process_next_instruction(&mut self, keys: [bool; 16]) -> TimeTakenInMicroSeconds {
         // Opcodes and most documentation taken from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
         self.keys = keys;
         if self.delay_timer != 0 {
             self.delay_timer -= 1;
         }
         // TODO(reece): Add timings to each instruction so we can get accurate emulation?
+        // TIMINGS - https://jackson-s.me/2019/07/13/Chip-8-Instruction-Scheduling-and-Frequency.html
         // We'd want an upper bound of how long we run before going to the next frame, instead of
         // running exactly N frames each time (would be way more accurate)
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
@@ -83,12 +93,14 @@ impl Chip8 {
         let x = self.data_registers[x_register as usize];
         let y_register = first_nibble(last_byte(opcode));
         let y = self.data_registers[y_register as usize];
+
         match first_nibble_first_byte {
             0x0 => match last_byte(opcode) {
                 0xE0 => {
                     self.display_buffer =
                         [false; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS];
                     self.increment_pc();
+                    return 109;
                 }
                 0xEE => {
                     // 00EE - RET
@@ -96,6 +108,7 @@ impl Chip8 {
                     self.program_counter = self.stack[self.stack_pointer as usize] as usize;
                     self.stack_pointer -= 1;
                     self.increment_pc();
+                    return 105;
                 }
                 _ => {
                     unimplemented_opcode(
@@ -110,6 +123,7 @@ impl Chip8 {
                 // 1nnn - Jump (JP) addr
                 let address_to_jump = opcode & 0x0FFF;
                 self.program_counter = address_to_jump as usize;
+                return 105;
             }
             0x2 => {
                 // 2nnn - CALL addr
@@ -119,6 +133,7 @@ impl Chip8 {
                 self.stack_pointer += 1;
                 self.stack[self.stack_pointer as usize] = self.program_counter as u16;
                 self.program_counter = (opcode & 0x0FFF) as usize;
+                return 105;
             }
             0x3 => {
                 // 3xkk - Skip Equal (SE) Vx, byte
@@ -131,6 +146,7 @@ impl Chip8 {
                 if self.data_registers[register as usize] == val_to_compare {
                     self.increment_pc();
                 }
+                return 55;
             }
             0x4 => {
                 // 4xkk - Skip Not Equal (SNE) Vx, byte
@@ -143,6 +159,7 @@ impl Chip8 {
                 if self.data_registers[register as usize] != val_to_compare {
                     self.increment_pc();
                 }
+                return 55;
             }
             0x5 => {
                 // 5xy0 - Skip Equal (SE) Vx, Vy
@@ -152,6 +169,7 @@ impl Chip8 {
                 if x == y {
                     self.increment_pc();
                 }
+                return 73;
             }
             0x6 => {
                 // 6xkk - Load (LD) Vx, byte
@@ -160,6 +178,7 @@ impl Chip8 {
                 let val_to_load = last_byte(opcode);
                 self.data_registers[register as usize] = val_to_load;
                 self.increment_pc();
+                return 27;
             }
             0x7 => {
                 // 7xkk - ADD Vx, byte
@@ -169,6 +188,7 @@ impl Chip8 {
                 let val_to_add = last_byte(opcode);
                 self.data_registers[register as usize] = val_to_add.wrapping_add(register_val);
                 self.increment_pc();
+                return 45;
             }
             0x8 => {
                 // Always gonna use register_x and register_y here
@@ -253,6 +273,8 @@ impl Chip8 {
                         self.program_counter,
                     ),
                 }
+                // A hard 200 microseconds for all 0x8xxx opcodes, handy!
+                return 200;
             }
             0x9 => {
                 // 9xy0 - Skip Not Equal (SNE) Vx, Vy
@@ -263,6 +285,7 @@ impl Chip8 {
                 if x != y {
                     self.increment_pc();
                 }
+                return 73;
             }
             0xA => {
                 // Annn - Load (LD) I, addr
@@ -270,7 +293,9 @@ impl Chip8 {
                 let val_to_load = opcode & 0x0FFF;
                 self.i_register = val_to_load;
                 self.increment_pc();
+                return 55;
             }
+            // 0xB - Timing of 105 microseconds
             0xC => {
                 // Cxkk - RND Vx, byte
                 // Set Vx = random byte AND kk.
@@ -278,6 +303,7 @@ impl Chip8 {
                 let rand_val: u8 = rand::random();
                 self.data_registers[x_register as usize] = rand_val & val_to_and;
                 self.increment_pc();
+                return 164;
             }
             0xD => {
                 // Draw (DRW) Vx, Vy, nibble
@@ -322,6 +348,7 @@ impl Chip8 {
                 }
 
                 self.increment_pc();
+                return 22734;
             }
             0xE => match last_byte(opcode) {
                 0x9E => {
@@ -332,6 +359,7 @@ impl Chip8 {
                         self.increment_pc();
                     }
                     self.increment_pc();
+                    return 73;
                 }
                 0xA1 => {
                     // ExA1 - SKNP Vx
@@ -341,6 +369,7 @@ impl Chip8 {
                         self.increment_pc();
                     }
                     self.increment_pc();
+                    return 73;
                 }
                 _ => unimplemented_opcode(
                     opcode,
@@ -355,34 +384,40 @@ impl Chip8 {
                     // Set Vx = delay timer value.
                     self.data_registers[x_register as usize] = self.delay_timer;
                     self.increment_pc();
+                    return 45;
                 }
+                // Fx0A - 0 microseconds to execute (since it's a wait I guess?)
                 0x15 => {
                     // Fx15 - LD DT, Vx
                     // Set delay timer = Vx.
                     self.delay_timer = x;
                     self.increment_pc();
+                    return 45;
                 }
                 0x18 => {
                     // Fx18 - LD ST, Vx
                     // Set sound timer = Vx.
                     self.sound_timer = x;
                     self.increment_pc();
+                    return 45;
                 }
                 0x1E => {
                     // Fx1E - ADD I, Vx
                     // Set I = I + Vx.
                     self.i_register = self.i_register.wrapping_add(x as u16);
                     self.increment_pc();
+                    return 86;
                 }
                 0x29 => {
                     // Fx29 - LD F, Vx
                     // Set I = location of sprite for digit Vx.
                     // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx
 
-                    // TODO(reece): Extract font_start_location constant out
-                    let sprite_location = FONT_SPRITE_LENGTH_IN_BYTES * FONT_START_LOCATION;
+                    let sprite_location =
+                        (FONT_SPRITE_LENGTH_IN_BYTES * FONT_START_LOCATION) as u16;
                     self.i_register = sprite_location;
                     self.increment_pc();
+                    return 91;
                 }
                 0x33 => {
                     // Fx33 - LD B, Vx
@@ -403,6 +438,8 @@ impl Chip8 {
                     self.memory[self.i_register as usize + 2] = ones;
 
                     self.increment_pc();
+
+                    return 927;
                 }
                 0x55 => {
                     // Fx55 - LD [I], Vx
@@ -417,6 +454,7 @@ impl Chip8 {
                             self.data_registers[reg as usize];
                     }
                     self.increment_pc();
+                    return 605;
                 }
                 0x65 => {
                     // Fx65 - LD Vx, [I]
@@ -429,6 +467,7 @@ impl Chip8 {
                             self.memory[start_address + reg as usize];
                     }
                     self.increment_pc();
+                    return 605;
                 }
                 _ => unimplemented_opcode(
                     opcode,
@@ -445,6 +484,7 @@ impl Chip8 {
                 self.program_counter,
             ),
         }
+        return 0;
     }
 
     /// XOR's the pixel at x,y with value.
@@ -628,13 +668,11 @@ fn main() {
         }
 
         if executing || step_once {
-            // TODO(reece): Don't like how we're doing this right now. Input only being updated after n frames.
-            for _ in 0..=instructions_per_frame {
-                chip.process_next_instruction(keys);
-                draw_display(&mut canvas, &chip.display_buffer, scale);
-                if step_once {
-                    break;
-                }
+            let processing_time_target = (1.0 / 60.0 * 1000.0 * 1000.0) as u32;
+            chip.process_a_bunch(keys, processing_time_target);
+            draw_display(&mut canvas, &chip.display_buffer, scale);
+            if step_once {
+                break;
             }
             if step_once {
                 step_once = false;
@@ -665,7 +703,7 @@ fn unimplemented_opcode(opcode: u16, first_nibble: u8, second_nibble: u8, progra
 }
 
 const FONT_SPRITE_LENGTH_IN_BYTES: usize = 5;
-const FONT_START_LOCATION: u16 = 0;
+const FONT_START_LOCATION: usize = 0;
 const NUMBER_OF_FONT_SPRITES: usize = 16; // 0 - F
 
 #[rustfmt::skip]
