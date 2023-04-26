@@ -84,7 +84,7 @@ impl Chip8 {
 
         let first_nibble_first_byte = first_nibble(first_byte(opcode));
         let second_nibble_first_byte = last_nibble(first_byte(opcode));
-        println!("PC: 0x{:X}, op: 0x{:X}", self.program_counter, opcode);
+        // println!("PC: 0x{:X}, op: 0x{:X}", self.program_counter, opcode);
         let x_register = last_nibble(first_byte(opcode));
         let x = self.data_registers[x_register as usize];
         let y_register = first_nibble(last_byte(opcode));
@@ -318,10 +318,6 @@ impl Chip8 {
                 let mut was_collision = false;
 
                 // TODO(reece) The collision logic with wrap
-                // TODO(reece) If sprite is outside the screen, wrap around the screen to the same Y coord
-                //	Didn't need it for the test program, so just going without this for now
-                println!("Drawing at X {}", x);
-                println!("Drawing at Y {}", y);
                 for (i, byte) in bytes_to_draw.iter().enumerate() {
                     let byte = *byte;
                     for bit_position in 0..8 {
