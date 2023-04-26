@@ -75,7 +75,12 @@ impl Chip8 {
         let mut elapsed_time = 0;
 
         while elapsed_time < processing_time_target {
-            elapsed_time += self.process_next_instruction(keys);
+            let processing_time = self.process_next_instruction(keys);
+            // This max check seems fine for now instead of returning an Option or something
+            if processing_time == TimeTakenInMicroSeconds::MAX {
+                break;
+            }
+            elapsed_time += processing_time;
         }
     }
 
@@ -390,7 +395,25 @@ impl Chip8 {
                     self.increment_pc();
                     return 45;
                 }
-                // Fx0A - 0 microseconds to execute (since it's a wait I guess?)
+                0x0A => {
+                    let mut pressed_key: Option<u8> = None;
+                    for (i, key) in self.keys.iter().enumerate() {
+                        if *key == true {
+                            pressed_key = Some(i as u8);
+                        }
+                    }
+
+                    if let Some(key) = pressed_key {
+                        self.memory[x_register as usize] = key;
+                        self.increment_pc();
+                    }
+
+                    // We don't increment the program counter here because we want to wait, but
+                    // still need input from the input loop
+                    // Return max value here so we can break out the processing loop. Technically
+                    // not accurate timing, but it works!
+                    return TimeTakenInMicroSeconds::MAX;
+                }
                 0x15 => {
                     // Fx15 - LD DT, Vx
                     // Set delay timer = Vx.
@@ -724,6 +747,8 @@ fn main() {
             }
         }
 
+        // TODO(reece): Score isn't updating for Breakout or Pong, but the BCD test passes on
+        // 0xFx33 test for Corax+ opcode test rom
         // TODO(reece): There's some flickering, super noticable with breakout game.
         draw_display(&mut canvas, &chip.display_buffer, scale);
 
