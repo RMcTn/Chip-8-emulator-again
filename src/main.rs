@@ -62,7 +62,7 @@ impl Chip8 {
         }
     }
 
-    fn process_a_bunch(&mut self, keys: [bool; 16], processing_time_target: u32) {
+    fn process_a_frame(&mut self, keys: [bool; 16], processing_time_target: u32) {
         let mut elapsed_time = 0;
 
         while elapsed_time < processing_time_target {
@@ -670,7 +670,7 @@ fn main() {
                 executing = false;
                 chip.print_registers();
             } else {
-                chip.process_a_bunch(
+                chip.process_a_frame(
                     keys,
                     target_chip_frame_time.as_micros() as u32, // Should be a safe cast, unless someone wants a ridiculously large amount of processing time for a frame
                 );
