@@ -79,10 +79,6 @@ impl Chip8 {
         if self.delay_timer != 0 {
             self.delay_timer -= 1;
         }
-        // TODO(reece): Add timings to each instruction so we can get accurate emulation?
-        // TIMINGS - https://jackson-s.me/2019/07/13/Chip-8-Instruction-Scheduling-and-Frequency.html
-        // We'd want an upper bound of how long we run before going to the next frame, instead of
-        // running exactly N frames each time (would be way more accurate)
         let opcode: u16 = (self.memory[self.program_counter] as u16) << 8
             | self.memory[self.program_counter + 1] as u16;
 
