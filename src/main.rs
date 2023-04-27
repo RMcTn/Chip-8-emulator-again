@@ -1,4 +1,5 @@
 mod chip;
+mod disassembler;
 
 use chip::*;
 
@@ -41,6 +42,14 @@ impl AudioCallback for SquareWave {
 }
 
 fn main() {
+    let assembly_program = vec![
+        "JP 0x555".to_string(),
+        "LD I, 0x200".to_string(),
+        "LD 0x1, 0x3".to_string(),
+        "LD 0x0, 0x1".to_string(),
+    ];
+    let impromptu_rom = disassembler::disassemble(assembly_program);
+
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let audio_subsystem = sdl_context.audio().unwrap();
@@ -226,6 +235,7 @@ fn main() {
 
         // TODO(reece): Score isn't updating for Breakout or Pong, but the BCD test passes on
         // 0xFx33 test for Corax+ opcode test rom
+        // UPDATE ON BCD - The values are definitely correct, we're just drawing them wrong
         // TODO(reece): There's some flickering, super noticable with breakout game.
         draw_display(&mut canvas, &mut texture, &chip.display_buffer);
 
