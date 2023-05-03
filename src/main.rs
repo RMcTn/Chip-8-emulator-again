@@ -161,6 +161,11 @@ fn main() {
                         }
                     }
                 }
+                Event::DropFile { filename, .. } => {
+                    // TODO(reece): Handle non .ch8 files gracefully!
+                    let rom_bytes = std::fs::read(filename).unwrap();
+                    chip = Chip8::new(&rom_bytes);
+                }
                 Event::KeyDown {
                     keycode: Some(keycode),
                     ..
