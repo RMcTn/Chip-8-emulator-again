@@ -3,7 +3,7 @@ mod disassembler;
 
 use chip::*;
 
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 // TODO(reece): Write an assembler for this as well using this reference
 // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
 // Add in assembly labels for jumps or loading into register
@@ -41,6 +41,18 @@ impl AudioCallback for SquareWave {
     }
 }
 
+#[derive(PartialEq, Eq, Hash)]
+enum Command {
+    Step,
+    Pause,
+}
+
+type Keymap = HashMap<Keycode, Command>;
+
+fn default_keymap() -> Keymap {
+    return Keymap::from([(Keycode::P, Command::Pause), (Keycode::N, Command::Step)]);
+}
+
 fn main() {
     let assembly_program = vec![
         "JP 0x555".to_string(),
@@ -49,6 +61,8 @@ fn main() {
         "LD 0x0, 0x1".to_string(),
     ];
     let impromptu_rom = disassembler::disassemble(assembly_program);
+
+    let keymap = default_keymap();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -131,36 +145,6 @@ fn main() {
                 } => {
                     break 'running;
                 }
-                Event::KeyDown {
-                    keycode: Some(Keycode::P),
-                    ..
-                } => {
-                    executing = !executing;
-                    println!("Toggled executing to {}", executing);
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::N),
-                    ..
-                } => {
-                    // Just step through
-                    executing = false;
-                    step_once = true;
-                    println!("Stepping once");
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::L),
-                    ..
-                } => {
-                    dbg!(chip.display_buffer);
-                    // First index where false
-
-                    for (i, b) in chip.display_buffer.iter().enumerate() {
-                        if *b == false {
-                            println!("False at 0x{:X} ({})", i, i);
-                            break;
-                        }
-                    }
-                }
                 Event::DropFile { filename, .. } => {
                     // TODO(reece): Handle non .ch8 files gracefully!
                     let rom_bytes = std::fs::read(filename).unwrap();
@@ -188,7 +172,21 @@ fn main() {
                     Keycode::D => keys[0xD] = true,
                     Keycode::E => keys[0xE] = true,
                     Keycode::F => keys[0xF] = true,
-                    _ => { /* Left blank intentionally. These keys do nothing */ }
+                    key => {
+                        if let Some(command) = keymap.get(&key) {
+                            match command {
+                                Command::Step => {
+                                    executing = false;
+                                    step_once = true;
+                                    println!("Stepping once");
+                                }
+                                Command::Pause => {
+                                    executing = !executing;
+                                    println!("Toggled executing to {}", executing);
+                                }
+                            }
+                        }
+                    }
                 },
                 Event::KeyUp {
                     keycode: Some(keycode),
