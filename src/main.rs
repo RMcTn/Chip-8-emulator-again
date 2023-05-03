@@ -15,7 +15,6 @@ use sdl2::{
     event::Event,
     keyboard::Keycode,
     pixels::{Color, PixelFormatEnum},
-    rect::Rect,
     render::{Canvas, Texture},
 };
 
@@ -45,12 +44,32 @@ impl AudioCallback for SquareWave {
 enum Command {
     Step,
     Pause,
+    PressKeyOnKeypad(u8),
 }
 
 type Keymap = HashMap<Keycode, Command>;
 
 fn default_keymap() -> Keymap {
-    return Keymap::from([(Keycode::P, Command::Pause), (Keycode::N, Command::Step)]);
+    return Keymap::from([
+        (Keycode::P, Command::Pause),
+        (Keycode::N, Command::Step),
+        (Keycode::Num0, Command::PressKeyOnKeypad(0x0)),
+        (Keycode::Num1, Command::PressKeyOnKeypad(0x1)),
+        (Keycode::Num2, Command::PressKeyOnKeypad(0x2)),
+        (Keycode::Num3, Command::PressKeyOnKeypad(0x3)),
+        (Keycode::Num4, Command::PressKeyOnKeypad(0x4)),
+        (Keycode::Num5, Command::PressKeyOnKeypad(0x5)),
+        (Keycode::Num6, Command::PressKeyOnKeypad(0x6)),
+        (Keycode::Num7, Command::PressKeyOnKeypad(0x7)),
+        (Keycode::Num8, Command::PressKeyOnKeypad(0x8)),
+        (Keycode::Num9, Command::PressKeyOnKeypad(0x9)),
+        (Keycode::A, Command::PressKeyOnKeypad(0xA)),
+        (Keycode::B, Command::PressKeyOnKeypad(0xB)),
+        (Keycode::C, Command::PressKeyOnKeypad(0xC)),
+        (Keycode::D, Command::PressKeyOnKeypad(0xD)),
+        (Keycode::E, Command::PressKeyOnKeypad(0xE)),
+        (Keycode::F, Command::PressKeyOnKeypad(0xF)),
+    ]);
 }
 
 fn main() {
@@ -154,24 +173,6 @@ fn main() {
                     keycode: Some(keycode),
                     ..
                 } => match keycode {
-                    // TODO(reece): Have some better mappings/configurable later. Just making it
-                    // work for now
-                    Keycode::Num0 => keys[0x0] = true,
-                    Keycode::Num1 => keys[0x1] = true,
-                    Keycode::Num2 => keys[0x2] = true,
-                    Keycode::Num3 => keys[0x3] = true,
-                    Keycode::Num4 => keys[0x4] = true,
-                    Keycode::Num5 => keys[0x5] = true,
-                    Keycode::Num6 => keys[0x6] = true,
-                    Keycode::Num7 => keys[0x7] = true,
-                    Keycode::Num8 => keys[0x8] = true,
-                    Keycode::Num9 => keys[0x9] = true,
-                    Keycode::A => keys[0xA] = true,
-                    Keycode::B => keys[0xB] = true,
-                    Keycode::C => keys[0xC] = true,
-                    Keycode::D => keys[0xD] = true,
-                    Keycode::E => keys[0xE] = true,
-                    Keycode::F => keys[0xF] = true,
                     key => {
                         if let Some(command) = keymap.get(&key) {
                             match command {
@@ -184,6 +185,17 @@ fn main() {
                                     executing = !executing;
                                     println!("Toggled executing to {}", executing);
                                 }
+                                Command::PressKeyOnKeypad(chip_key) => match chip_key {
+                                    0x0..=0xF => {
+                                        keys[*chip_key as usize] = true;
+                                    }
+                                    _ => {
+                                        eprintln!(
+                                            "There is no chip key with value {} (0x{:X})",
+                                            *chip_key, *chip_key
+                                        );
+                                    }
+                                },
                             }
                         }
                     }
@@ -192,25 +204,24 @@ fn main() {
                     keycode: Some(keycode),
                     ..
                 } => match keycode {
-                    // TODO(reece): Have some better mappings/configurable later. Just making it
-                    // work for now
-                    Keycode::Num0 => keys[0x0] = false,
-                    Keycode::Num1 => keys[0x1] = false,
-                    Keycode::Num2 => keys[0x2] = false,
-                    Keycode::Num3 => keys[0x3] = false,
-                    Keycode::Num4 => keys[0x4] = false,
-                    Keycode::Num5 => keys[0x5] = false,
-                    Keycode::Num6 => keys[0x6] = false,
-                    Keycode::Num7 => keys[0x7] = false,
-                    Keycode::Num8 => keys[0x8] = false,
-                    Keycode::Num9 => keys[0x9] = false,
-                    Keycode::A => keys[0xA] = false,
-                    Keycode::B => keys[0xB] = false,
-                    Keycode::C => keys[0xC] = false,
-                    Keycode::D => keys[0xD] = false,
-                    Keycode::E => keys[0xE] = false,
-                    Keycode::F => keys[0xF] = false,
-                    _ => { /* Left blank intentionally. These keys do nothing */ }
+                    key => {
+                        if let Some(command) = keymap.get(&key) {
+                            match command {
+                                Command::PressKeyOnKeypad(chip_key) => match chip_key {
+                                    0x0..=0xF => {
+                                        keys[*chip_key as usize] = false;
+                                    }
+                                    _ => {
+                                        eprintln!(
+                                            "There is no chip key with value {} (0x{:X})",
+                                            *chip_key, *chip_key
+                                        );
+                                    }
+                                },
+                                _ => { /* We don't care about keyup events for non chip8 keys */ }
+                            }
+                        }
+                    }
                 },
                 _ => {}
             }
