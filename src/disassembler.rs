@@ -9,6 +9,9 @@ pub enum TokenType {
     LD, // TODO(reece): Going to keep the 0x1 syntax for chosing register 1 for now, maybe move to
     // Vx later
     JP,
+    Call,
+    SE,
+    SNE,
     Number,
     Addr, // Not sure if we want this yet!
     Comma,
@@ -54,6 +57,9 @@ impl Scanner {
             ("JP".to_string(), TokenType::JP),
             ("LD".to_string(), TokenType::LD),
             ("I".to_string(), TokenType::IRegister),
+            ("CALL".to_string(), TokenType::Call),
+            ("SE".to_string(), TokenType::SE),
+            ("SNE".to_string(), TokenType::SNE),
         ]);
 
         let scanner = Scanner {
@@ -64,6 +70,7 @@ impl Scanner {
         };
         return scanner;
     }
+
     fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = vec![];
 
@@ -96,7 +103,6 @@ impl Scanner {
     fn scan_token(&mut self) -> Option<Token> {
         let ch = self.source_as_chars[self.current_char_idx];
         self.advance();
-        dbg!(ch);
         match ch {
             '0' => {
                 if self.next_char_is('x') {
@@ -153,7 +159,7 @@ impl Scanner {
     }
 
     fn parse_hex_number(&mut self) -> u16 {
-        while self.peek().is_numeric() {
+        while self.peek().is_ascii_hexdigit() {
             self.advance();
         }
 
