@@ -87,8 +87,8 @@ fn main() {
         "
     .to_string();
 
-    // let tokens = disassembler::parse(assembly_program_v2);
-    // dbg!(tokens);
+    let tokens = disassembler::parse(assembly_program_v2);
+    dbg!(tokens);
     // let impromptu_rom = disassembler::disassemble(assembly_program);
 
     let keymap = default_keymap();

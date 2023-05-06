@@ -8,12 +8,16 @@ fn make_instruction_to_opcode_mapping() -> HashMap<&'static str, u8> {
 pub enum TokenType {
     LD,
     JP,
+    Number,
+    Addr, // Not sure if we want this yet!
+    Comma,
 }
 
 #[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
     pub word: Vec<char>, // Just cloning the str's right now so we can move along
+    pub literal: Option<u16>,
 }
 
 struct Scanner {
@@ -52,10 +56,39 @@ impl Scanner {
         return tokens;
     }
 
+    fn next_char_is(&self, ch: char) -> bool {
+        if self.is_at_end() && ch != '\0' {
+            return false;
+        }
+        return self.peek() == ch;
+    }
+
+    fn is_at_end(&self) -> bool {
+        return self.current_char_idx >= self.source_as_chars.len();
+    }
+
+    fn advance(&mut self) {
+        self.current_char_idx += 1;
+    }
+
     fn scan_token(&mut self) -> Option<Token> {
         let ch = self.source_as_chars[self.current_char_idx];
-        self.current_char_idx += 1;
+        self.advance();
         match ch {
+            '0' => {
+                if self.next_char_is('x') {
+                    self.advance();
+                    let val = self.parse_hex_number();
+                    Some(Token {
+                        token_type: TokenType::Number,
+                        word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
+                            .to_owned(),
+                        literal: Some(val),
+                    })
+                } else {
+                    panic!("Was expecting hex number after 0 character");
+                }
+            }
             _ => {
                 if ch.is_alphabetic() {
                     // TODO(reece): Handle this unwrap
@@ -64,7 +97,10 @@ impl Scanner {
                         token_type,
                         word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
                             .to_owned(),
+                        literal: None,
                     })
+                } else if ch.is_whitespace() {
+                    None
                 } else {
                     todo!()
                 }
@@ -73,10 +109,8 @@ impl Scanner {
     }
 
     fn parse_instruction(&mut self) -> Option<TokenType> {
-        // TODO(reece): Handle end of file
-
-        while self.source_as_chars[self.current_char_idx].is_alphabetic() {
-            self.current_char_idx += 1;
+        while self.peek().is_alphabetic() {
+            self.advance();
         }
 
         // SPEEDUP(reece): Don't clone the string
@@ -87,6 +121,39 @@ impl Scanner {
             return Some(*instruction_type);
         }
         return None;
+    }
+
+    fn parse_hex_number(&mut self) -> u16 {
+        while self.peek().is_numeric() {
+            self.advance();
+        }
+
+        let num_as_string: String = self.source_as_chars
+            [self.start_char_idx + 2..self.current_char_idx]
+            .iter()
+            .collect();
+
+        // Seems like a safe unwrap (ignoring numbers too big!)
+        let num = u16::from_str_radix(&num_as_string, 16).unwrap();
+        return num;
+    }
+
+    fn peek(&self) -> char {
+        if self.is_at_end() {
+            // TODO(reece): Is returning a null character something we really want to do at the
+            // end?
+            return '\0';
+        }
+        return self.source_as_chars[self.current_char_idx];
+    }
+
+    fn peek_next(&self) -> char {
+        if self.is_at_end() {
+            // TODO(reece): Is returning a null character something we really want to do at the
+            // end?
+            return '\0';
+        }
+        return self.source_as_chars[self.current_char_idx + 1];
     }
 }
 
@@ -124,7 +191,6 @@ pub fn disassemble(lines: Vec<String>) -> Vec<u8> {
                             'I' => {
                                 let opcode = *instruction_to_opcode_map.get("LD I").unwrap();
                                 let without_prefix = third_token.trim_start_matches("0x");
-                                // TODO(reece): Validate as hexadecimal (Ignore size of number for now)
                                 let addr = u16::from_str_radix(without_prefix, 16).unwrap();
                                 let last_byte = (addr & 0xFF) as u8;
                                 let addr_nibble = (addr >> 8 & 0xF) as u8;
