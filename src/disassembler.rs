@@ -1,7 +1,98 @@
-use std::{collections::HashMap, num::ParseIntError};
+use std::collections::HashMap;
 
 fn make_instruction_to_opcode_mapping() -> HashMap<&'static str, u8> {
     HashMap::from([("JP", 0x1), ("LD I", 0xA)])
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum TokenType {
+    LD,
+    JP,
+}
+
+#[derive(Debug)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub word: Vec<char>, // Just cloning the str's right now so we can move along
+}
+
+struct Scanner {
+    start_char_idx: usize,
+    current_char_idx: usize,
+    source_as_chars: Vec<char>,
+    instructions: HashMap<String, TokenType>,
+}
+
+impl Scanner {
+    fn new(source: String) -> Self {
+        let instructions: HashMap<String, TokenType> = HashMap::from([
+            ("JP".to_string(), TokenType::JP),
+            ("LD".to_string(), TokenType::LD),
+        ]);
+
+        let scanner = Scanner {
+            start_char_idx: 0,
+            current_char_idx: 0,
+            source_as_chars: source.chars().collect(),
+            instructions,
+        };
+        return scanner;
+    }
+    fn tokenize(&mut self) -> Vec<Token> {
+        let mut tokens = vec![];
+
+        while self.current_char_idx < self.source_as_chars.len() {
+            self.start_char_idx = self.current_char_idx;
+            if let Some(token) = self.scan_token() {
+                tokens.push(token);
+                dbg!(&tokens);
+            }
+        }
+
+        return tokens;
+    }
+
+    fn scan_token(&mut self) -> Option<Token> {
+        let ch = self.source_as_chars[self.current_char_idx];
+        self.current_char_idx += 1;
+        match ch {
+            _ => {
+                if ch.is_alphabetic() {
+                    // TODO(reece): Handle this unwrap
+                    let token_type = self.parse_instruction().unwrap();
+                    Some(Token {
+                        token_type,
+                        word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
+                            .to_owned(),
+                    })
+                } else {
+                    todo!()
+                }
+            }
+        }
+    }
+
+    fn parse_instruction(&mut self) -> Option<TokenType> {
+        // TODO(reece): Handle end of file
+
+        while self.source_as_chars[self.current_char_idx].is_alphabetic() {
+            self.current_char_idx += 1;
+        }
+
+        // SPEEDUP(reece): Don't clone the string
+        let text: String = self.source_as_chars[self.start_char_idx..self.current_char_idx]
+            .iter()
+            .collect();
+        if let Some(instruction_type) = self.instructions.get(&text) {
+            return Some(*instruction_type);
+        }
+        return None;
+    }
+}
+
+pub fn parse(source: String) -> Vec<Token> {
+    let mut scanner = Scanner::new(source);
+    return scanner.tokenize();
 }
 
 pub fn disassemble(lines: Vec<String>) -> Vec<u8> {
@@ -41,6 +132,11 @@ pub fn disassemble(lines: Vec<String>) -> Vec<u8> {
 
                                 machine_code.push(first_byte);
                                 machine_code.push(last_byte);
+                            }
+                            'V' => {
+                                // This is starting to feel annoying having to validate constantly.
+                                // Maybe should just parse as 1 pass, then convert those tokens
+                                // into machine code?
                             }
                             _ => {
                                 todo!();

@@ -74,12 +74,22 @@ fn default_keymap() -> Keymap {
 
 fn main() {
     let assembly_program = vec![
-        "JP 0x555".to_string(),
+        "JP 0x202".to_string(),
         "LD I, 0x200".to_string(),
         "LD 0x1, 0x3".to_string(),
         "LD 0x0, 0x1".to_string(),
     ];
-    let impromptu_rom = disassembler::disassemble(assembly_program);
+
+    let assembly_program_v2 = "JP 0x202
+        LD I, 0x200
+        LD 0x1, 0x3
+        LD 0x0, 0x1
+        "
+    .to_string();
+
+    // let tokens = disassembler::parse(assembly_program_v2);
+    // dbg!(tokens);
+    // let impromptu_rom = disassembler::disassemble(assembly_program);
 
     let keymap = default_keymap();
 
