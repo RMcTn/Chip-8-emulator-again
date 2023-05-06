@@ -11,6 +11,7 @@ pub enum TokenType {
     Number,
     Addr, // Not sure if we want this yet!
     Comma,
+    IRegister,
 }
 
 #[derive(Debug)]
@@ -24,21 +25,22 @@ struct Scanner {
     start_char_idx: usize,
     current_char_idx: usize,
     source_as_chars: Vec<char>,
-    instructions: HashMap<String, TokenType>,
+    keywords: HashMap<String, TokenType>,
 }
 
 impl Scanner {
     fn new(source: String) -> Self {
-        let instructions: HashMap<String, TokenType> = HashMap::from([
+        let keywords: HashMap<String, TokenType> = HashMap::from([
             ("JP".to_string(), TokenType::JP),
             ("LD".to_string(), TokenType::LD),
+            ("I".to_string(), TokenType::IRegister),
         ]);
 
         let scanner = Scanner {
             start_char_idx: 0,
             current_char_idx: 0,
             source_as_chars: source.chars().collect(),
-            instructions,
+            keywords,
         };
         return scanner;
     }
@@ -49,9 +51,9 @@ impl Scanner {
             self.start_char_idx = self.current_char_idx;
             if let Some(token) = self.scan_token() {
                 tokens.push(token);
-                dbg!(&tokens);
             }
         }
+        dbg!(&tokens);
 
         return tokens;
     }
@@ -74,6 +76,7 @@ impl Scanner {
     fn scan_token(&mut self) -> Option<Token> {
         let ch = self.source_as_chars[self.current_char_idx];
         self.advance();
+        dbg!(ch);
         match ch {
             '0' => {
                 if self.next_char_is('x') {
@@ -89,6 +92,11 @@ impl Scanner {
                     panic!("Was expecting hex number after 0 character");
                 }
             }
+            ',' => Some(Token {
+                token_type: TokenType::Comma,
+                word: self.source_as_chars[self.start_char_idx..self.current_char_idx].to_owned(),
+                literal: None,
+            }),
             _ => {
                 if ch.is_alphabetic() {
                     // TODO(reece): Handle this unwrap
@@ -109,7 +117,8 @@ impl Scanner {
     }
 
     fn parse_instruction(&mut self) -> Option<TokenType> {
-        while self.peek().is_alphabetic() {
+        // TODO(reece): Rename this from parse instruction because it does more than that
+        while self.peek().is_alphabetic() && !self.next_char_is(',') {
             self.advance();
         }
 
@@ -117,8 +126,8 @@ impl Scanner {
         let text: String = self.source_as_chars[self.start_char_idx..self.current_char_idx]
             .iter()
             .collect();
-        if let Some(instruction_type) = self.instructions.get(&text) {
-            return Some(*instruction_type);
+        if let Some(keyword_type) = self.keywords.get(&text) {
+            return Some(*keyword_type);
         }
         return None;
     }
