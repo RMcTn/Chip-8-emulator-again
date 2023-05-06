@@ -6,12 +6,32 @@ fn make_instruction_to_opcode_mapping() -> HashMap<&'static str, u8> {
 
 #[derive(Clone, Copy, Debug)]
 pub enum TokenType {
-    LD,
+    LD, // TODO(reece): Going to keep the 0x1 syntax for chosing register 1 for now, maybe move to
+    // Vx later
     JP,
     Number,
     Addr, // Not sure if we want this yet!
     Comma,
     IRegister,
+}
+
+enum OpcodeType {
+    // The plan here was write something that could hold the different types of arguments we get.
+    // For example:
+    // LD I, 0x200
+    // LD 0x1, 0x3
+    // JP 0x200
+    // Then our TokenTypes could be
+    // LD(OpcodeType) -> match on this when doing code generation
+    // match opcode_type {
+    //  I register -> that stuff
+    //  2 arguments -> 2 arg stuff
+    // }
+    // But this might be confusing what a "token" really means. These almost feel more like
+    // statements.
+    // Is it necessary to have a tokenizing pass over the assembly code, and then a pass over the
+    // tokens to generate "statements", then another pass of statements just to generate machine
+    // code for such a simple instruction set?
 }
 
 #[derive(Debug)]
