@@ -18,6 +18,12 @@ pub enum TokenType {
     AND,
     XOR,
     OR,
+    RND,
+    DRAW,
+    SKP,
+    SKNP,
+    RET,
+    CLS,
     Number,
     Addr, // Not sure if we want this yet!
     Comma,
@@ -71,6 +77,12 @@ impl Scanner {
             ("AND".to_string(), TokenType::AND),
             ("XOR".to_string(), TokenType::XOR),
             ("OR".to_string(), TokenType::OR),
+            ("RND".to_string(), TokenType::RND),
+            ("DRW".to_string(), TokenType::DRAW),
+            ("SKP".to_string(), TokenType::SKP),
+            ("SKNP".to_string(), TokenType::SKNP),
+            ("RET".to_string(), TokenType::RET),
+            ("CLS".to_string(), TokenType::CLS),
         ]);
 
         let scanner = Scanner {
@@ -163,6 +175,7 @@ impl Scanner {
         let text: String = self.source_as_chars[self.start_char_idx..self.current_char_idx]
             .iter()
             .collect();
+        dbg!(&text);
         if let Some(keyword_type) = self.keywords.get(&text) {
             return Some(*keyword_type);
         }
