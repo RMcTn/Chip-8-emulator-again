@@ -12,6 +12,12 @@ pub enum TokenType {
     Call,
     SE,
     SNE,
+    ADD, // TODO(reece): ADD Vx, Vy and ADD Vx, byte are going to be indistinguishable if we just
+    // treat Vx like 0x3 for example, since 0x3 could mean Vy, or just byte
+    SUB,
+    AND,
+    XOR,
+    OR,
     Number,
     Addr, // Not sure if we want this yet!
     Comma,
@@ -60,6 +66,11 @@ impl Scanner {
             ("CALL".to_string(), TokenType::Call),
             ("SE".to_string(), TokenType::SE),
             ("SNE".to_string(), TokenType::SNE),
+            ("ADD".to_string(), TokenType::ADD),
+            ("SUB".to_string(), TokenType::SUB),
+            ("AND".to_string(), TokenType::AND),
+            ("XOR".to_string(), TokenType::XOR),
+            ("OR".to_string(), TokenType::OR),
         ]);
 
         let scanner = Scanner {
