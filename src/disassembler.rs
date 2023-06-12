@@ -6,14 +6,16 @@ fn make_instruction_to_opcode_mapping() -> HashMap<&'static str, u8> {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TokenType {
-    LD, // TODO(reece): Going to keep the 0x1 syntax for chosing register 1 for now, maybe move to
+    // TODO(reece): Going to keep the 0x1 syntax for chosing register 1 for now, maybe move to
     // Vx later
+    LD,
     JP,
     Call,
     SE,
     SNE,
-    ADD, // TODO(reece): ADD Vx, Vy and ADD Vx, byte are going to be indistinguishable if we just
+    // TODO(reece): ADD Vx, Vy and ADD Vx, byte are going to be indistinguishable if we just
     // treat Vx like 0x3 for example, since 0x3 could mean Vy, or just byte
+    ADD,
     SUB,
     AND,
     XOR,
@@ -25,7 +27,8 @@ pub enum TokenType {
     RET,
     CLS,
     Number,
-    Addr, // Not sure if we want this yet!
+    // Not sure if we want this yet!
+    Addr,
     Comma,
     IRegister,
     Newline, // Newline used at the terminator for most statements
@@ -53,7 +56,8 @@ enum OpcodeType {
 #[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
-    pub word: Vec<char>, // Just cloning the str's right now so we can move along
+    // Just cloning the str's right now so we can move along
+    pub word: Vec<char>,
     pub literal: Option<u16>,
 }
 
@@ -157,6 +161,13 @@ impl Scanner {
                             .to_owned(),
                         literal: None,
                     })
+                } else if ch == '\n' {
+                    Some(Token {
+                        token_type: TokenType::Newline,
+                        word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
+                            .to_owned(),
+                        literal: None,
+                    })
                 } else if ch.is_whitespace() {
                     None
                 } else {
@@ -220,7 +231,11 @@ impl Scanner {
 
 pub fn parse(source: String) -> Vec<Token> {
     let mut scanner = Scanner::new(source);
-    return scanner.tokenize();
+    let tokens = scanner.tokenize();
+    let mut parser = Parser::new(tokens);
+
+    parser.parse();
+    return parser.tokens;
 }
 
 struct Parser {
@@ -236,6 +251,7 @@ impl Parser {
     fn parse(&mut self) {
         while self.current < self.tokens.len() {
             let current_token = &self.tokens[self.current];
+            self.current += 1;
             match current_token.token_type {
                 TokenType::CLS => {
                     // Expect next token is new line
