@@ -1,4 +1,4 @@
-use std::{collections::HashMap, format, panic, todo};
+use std::{collections::HashMap, panic, todo};
 
 fn make_instruction_to_opcode_mapping() -> HashMap<&'static str, u8> {
     HashMap::from([("JP", 0x1), ("LD I", 0xA)])
@@ -53,7 +53,7 @@ enum OpcodeType {
     // code for such a simple instruction set?
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
     // Just cloning the str's right now so we can move along
@@ -251,8 +251,8 @@ impl Parser {
     fn parse(&mut self) -> Vec<u8> {
         let mut machine_code = Vec::with_capacity(100);
         while self.current < self.tokens.len() {
-            let current_token = &self.tokens[self.current];
-            self.current += 1;
+            let current_token = self.tokens[self.current].clone();
+            self.advance();
             match current_token.token_type {
                 TokenType::CLS | TokenType::RET => {
                     if !self.next_token_is_newline() {
@@ -265,7 +265,20 @@ impl Parser {
                         );
                     }
                     machine_code
-                        .extend_from_slice(Parser::machine_code_for_instruction(current_token));
+                        .extend_from_slice(Parser::machine_code_for_instruction(&current_token));
+                }
+                TokenType::JP => {
+                    if !self.match_tokens(&[TokenType::Number, TokenType::Newline]) {
+                        panic!(
+                            "{:?} was expecting a number and a new line. Instead found {:?} and {:?}",
+                            current_token.token_type,
+                            self.next_token().token_type,
+                            // TODO(reece): Bounds check here
+                            self.tokens[self.current + 1].token_type
+                        );
+                    } else {
+                        Parser::machine_code_for_instruction(&current_token);
+                    }
                 }
                 TokenType::Newline => {
                     // Do nothing
@@ -279,7 +292,7 @@ impl Parser {
 
     fn machine_code_for_instruction(token: &Token) -> &[u8] {
         // Might be worth having an intermediate state between Tokens and machine code to make
-        // codegen easier
+        // codegen easier. We're going to need to pass a slice of tokens otherwise
         return &[0];
     }
 
@@ -289,6 +302,35 @@ impl Parser {
 
     fn next_token_is_newline(&self) -> bool {
         return self.tokens[self.current].token_type == TokenType::Newline;
+    }
+
+    /// Does not consume the current token
+    fn check(&self, token_type: TokenType) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        return self.next_token().token_type == token_type;
+    }
+
+    fn advance(&mut self) {
+        self.current += 1;
+    }
+
+    /// Consumes the current_token
+    fn match_tokens(&mut self, token_types: &[TokenType]) -> bool {
+        for token_type in token_types {
+            if self.check(*token_type) {
+                self.advance();
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    fn is_at_end(&self) -> bool {
+        // TODO(reece): DRAW is just a stand in until we decide what end means
+        return self.next_token().token_type == TokenType::DRAW;
     }
 }
 
