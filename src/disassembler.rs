@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, format, panic, todo};
 
 fn make_instruction_to_opcode_mapping() -> HashMap<&'static str, u8> {
     HashMap::from([("JP", 0x1), ("LD I", 0xA)])
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TokenType {
     LD, // TODO(reece): Going to keep the 0x1 syntax for chosing register 1 for now, maybe move to
     // Vx later
@@ -28,6 +28,7 @@ pub enum TokenType {
     Addr, // Not sure if we want this yet!
     Comma,
     IRegister,
+    Newline, // Newline used at the terminator for most statements
 }
 
 enum OpcodeType {
@@ -179,6 +180,7 @@ impl Scanner {
         if let Some(keyword_type) = self.keywords.get(&text) {
             return Some(*keyword_type);
         }
+        dbg!("No keyword type found for {}", text);
         return None;
     }
 
@@ -219,6 +221,45 @@ impl Scanner {
 pub fn parse(source: String) -> Vec<Token> {
     let mut scanner = Scanner::new(source);
     return scanner.tokenize();
+}
+
+struct Parser {
+    tokens: Vec<Token>,
+    current: usize,
+}
+
+impl Parser {
+    fn new(tokens: Vec<Token>) -> Self {
+        return Parser { tokens, current: 0 };
+    }
+
+    fn parse(&mut self) {
+        while self.current < self.tokens.len() {
+            let current_token = &self.tokens[self.current];
+            match current_token.token_type {
+                TokenType::CLS => {
+                    // Expect next token is new line
+                    if !self.next_token_is_newline() {
+                        // TODO(reece): Some way to do line counts for better error messages
+                        // TODO(reece): Better error handling for parser errors
+                        panic!(
+                            "CLS was expecting a newline. Instead found {:?}",
+                            self.next_token().token_type
+                        );
+                    }
+                }
+                _ => todo!(),
+            }
+        }
+    }
+
+    fn next_token(&self) -> &Token {
+        return &self.tokens[self.current];
+    }
+
+    fn next_token_is_newline(&self) -> bool {
+        return self.tokens[self.current].token_type == TokenType::Newline;
+    }
 }
 
 pub fn disassemble(lines: Vec<String>) -> Vec<u8> {
