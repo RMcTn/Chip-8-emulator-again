@@ -248,25 +248,39 @@ impl Parser {
         return Parser { tokens, current: 0 };
     }
 
-    fn parse(&mut self) {
+    fn parse(&mut self) -> Vec<u8> {
+        let mut machine_code = Vec::with_capacity(100);
         while self.current < self.tokens.len() {
             let current_token = &self.tokens[self.current];
             self.current += 1;
             match current_token.token_type {
-                TokenType::CLS => {
-                    // Expect next token is new line
+                TokenType::CLS | TokenType::RET => {
                     if !self.next_token_is_newline() {
                         // TODO(reece): Some way to do line counts for better error messages
                         // TODO(reece): Better error handling for parser errors
                         panic!(
-                            "CLS was expecting a newline. Instead found {:?}",
+                            "{:?} was expecting a newline. Instead found {:?}",
+                            current_token.token_type,
                             self.next_token().token_type
                         );
                     }
+                    machine_code
+                        .extend_from_slice(Parser::machine_code_for_instruction(current_token));
+                }
+                TokenType::Newline => {
+                    // Do nothing
                 }
                 _ => todo!(),
             }
         }
+
+        return machine_code;
+    }
+
+    fn machine_code_for_instruction(token: &Token) -> &[u8] {
+        // Might be worth having an intermediate state between Tokens and machine code to make
+        // codegen easier
+        return &[0];
     }
 
     fn next_token(&self) -> &Token {
