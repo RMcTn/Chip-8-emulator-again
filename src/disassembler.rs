@@ -270,20 +270,47 @@ impl Parser {
                 TokenType::JP => {
                     if !self.match_tokens(&[TokenType::Number, TokenType::Newline]) {
                         panic!(
-                            "{:?} was expecting a number and a new line. Instead found {:?} and {:?}",
+                            "{:?} was expecting a number and a new line. Instead found {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.next_token().token_type,
                             // TODO(reece): Bounds check here
-                            self.tokens[self.current + 1].token_type
+                            self.tokens[self.current + 1].token_type,
+                            self.tokens[self.current + 2].token_type
                         );
                     } else {
                         Parser::machine_code_for_instruction(&current_token);
                     }
                 }
+                TokenType::LD => {
+                    if !self.match_tokens(&[
+                        TokenType::Number,
+                        TokenType::Comma,
+                        TokenType::Number,
+                        TokenType::Newline,
+                    ]) && !self.match_tokens(&[
+                        TokenType::IRegister,
+                        TokenType::Comma,
+                        TokenType::Number,
+                        TokenType::Newline,
+                    ]) {
+                        panic!(
+                            "{:?} was expecting a number, a comma, a number, and a new line, or I, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?} and {:?}",
+                            current_token.token_type,
+                            self.next_token().token_type,
+                            // TODO(reece): Bounds check here
+                            self.tokens[self.current + 1].token_type,
+                            self.tokens[self.current + 2].token_type,
+                            self.tokens[self.current + 3].token_type
+                        );
+                    } else {
+                        Parser::machine_code_for_instruction(&current_token);
+                    }
+                }
+
                 TokenType::Newline => {
                     // Do nothing
                 }
-                _ => todo!(),
+                unimplemented_token => todo!("{:?}", unimplemented_token),
             }
         }
 
