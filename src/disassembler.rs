@@ -267,21 +267,22 @@ impl Parser {
                     machine_code
                         .extend_from_slice(Parser::machine_code_for_instruction(&current_token));
                 }
-                TokenType::JP => {
+                TokenType::JP | TokenType::Call => {
+                    let prev = self.current;
                     if !self.match_tokens(&[TokenType::Number, TokenType::Newline]) {
                         panic!(
-                            "{:?} was expecting a number and a new line. Instead found {:?} and {:?} and {:?}",
+                            "{:?} was expecting a number and a new line. Instead found {:?} and {:?}",
                             current_token.token_type,
-                            self.next_token().token_type,
+                            self.tokens[prev].token_type,
                             // TODO(reece): Bounds check here
-                            self.tokens[self.current + 1].token_type,
-                            self.tokens[self.current + 2].token_type
+                            self.tokens[prev + 1].token_type,
                         );
                     } else {
                         Parser::machine_code_for_instruction(&current_token);
                     }
                 }
                 TokenType::LD => {
+                    let prev = self.current;
                     if !self.match_tokens(&[
                         TokenType::Number,
                         TokenType::Comma,
@@ -294,27 +295,11 @@ impl Parser {
                         TokenType::Newline,
                     ]) {
                         panic!(
-                            "{:?} was expecting a number, a comma, a number, and a new line, or I, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?} and {:?}",
+                            "{:?} was expecting a number, a comma, a number, and a new line, or I, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?}",
                             current_token.token_type,
-                            self.next_token().token_type,
-                            // TODO(reece): Bounds check here
-                            self.tokens[self.current + 1].token_type,
-                            self.tokens[self.current + 2].token_type,
-                            self.tokens[self.current + 3].token_type
-                        );
-                    } else {
-                        Parser::machine_code_for_instruction(&current_token);
-                    }
-                }
-                TokenType::Call => {
-                    if !self.match_tokens(&[TokenType::Number, TokenType::Newline]) {
-                        panic!(
-                            "{:?} was expecting a number and a new line. Instead found {:?} and {:?} and {:?}",
-                            current_token.token_type,
-                            self.next_token().token_type,
-                            // TODO(reece): Bounds check here
-                            self.tokens[self.current + 1].token_type,
-                            self.tokens[self.current + 2].token_type
+                            self.tokens[prev].token_type,
+                            self.tokens[prev + 1].token_type,
+                            self.tokens[prev + 2].token_type,
                         );
                     } else {
                         Parser::machine_code_for_instruction(&current_token);
@@ -334,6 +319,7 @@ impl Parser {
     fn machine_code_for_instruction(token: &Token) -> &[u8] {
         // Might be worth having an intermediate state between Tokens and machine code to make
         // codegen easier. We're going to need to pass a slice of tokens otherwise
+        dbg!(token.token_type);
         return &[0];
     }
 
@@ -357,7 +343,7 @@ impl Parser {
         self.current += 1;
     }
 
-    /// Consumes the current_token
+    /// Consumes the current_token if it matches the given token type, advancing when matching
     fn match_tokens(&mut self, token_types: &[TokenType]) -> bool {
         for token_type in token_types {
             if self.check(*token_type) {
