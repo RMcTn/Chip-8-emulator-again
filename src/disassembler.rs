@@ -306,6 +306,20 @@ impl Parser {
                         Parser::machine_code_for_instruction(&current_token);
                     }
                 }
+                TokenType::Call => {
+                    if !self.match_tokens(&[TokenType::Number, TokenType::Newline]) {
+                        panic!(
+                            "{:?} was expecting a number and a new line. Instead found {:?} and {:?} and {:?}",
+                            current_token.token_type,
+                            self.next_token().token_type,
+                            // TODO(reece): Bounds check here
+                            self.tokens[self.current + 1].token_type,
+                            self.tokens[self.current + 2].token_type
+                        );
+                    } else {
+                        Parser::machine_code_for_instruction(&current_token);
+                    }
+                }
 
                 TokenType::Newline => {
                     // Do nothing
