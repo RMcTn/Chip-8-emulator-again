@@ -248,6 +248,8 @@ impl Parser {
         return Parser { tokens, current: 0 };
     }
 
+    /// Any instruction that uses a register specified by hexadecimal will be assumed to be valid
+    /// for now
     fn parse(&mut self) -> Vec<u8> {
         let mut machine_code = Vec::with_capacity(100);
         while self.current < self.tokens.len() {
@@ -267,7 +269,7 @@ impl Parser {
                     machine_code
                         .extend_from_slice(Parser::machine_code_for_instruction(&current_token));
                 }
-                TokenType::JP | TokenType::Call => {
+                TokenType::JP | TokenType::Call | TokenType::SKP | TokenType::SKNP => {
                     let prev = self.current;
                     if !self.match_tokens(&[TokenType::Number, TokenType::Newline]) {
                         panic!(
@@ -296,6 +298,32 @@ impl Parser {
                     ]) {
                         panic!(
                             "{:?} was expecting a number, a comma, a number, and a new line, or I, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?}",
+                            current_token.token_type,
+                            self.tokens[prev].token_type,
+                            self.tokens[prev + 1].token_type,
+                            self.tokens[prev + 2].token_type,
+                        );
+                    } else {
+                        Parser::machine_code_for_instruction(&current_token);
+                    }
+                }
+                TokenType::SE
+                | TokenType::SNE
+                | TokenType::ADD
+                | TokenType::OR
+                | TokenType::XOR
+                | TokenType::SUB
+                | TokenType::RND
+                | TokenType::AND => {
+                    let prev = self.current;
+                    if !self.match_tokens(&[
+                        TokenType::Number,
+                        TokenType::Comma,
+                        TokenType::Number,
+                        TokenType::Newline,
+                    ]) {
+                        panic!(
+                            "{:?} was expecting a number, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.tokens[prev].token_type,
                             self.tokens[prev + 1].token_type,
