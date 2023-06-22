@@ -333,6 +333,29 @@ impl Parser {
                         Parser::machine_code_for_instruction(&current_token);
                     }
                 }
+                TokenType::DRAW => {
+                    let prev = self.current;
+                    if !self.match_tokens(&[
+                        TokenType::Number,
+                        TokenType::Comma,
+                        TokenType::Number,
+                        TokenType::Comma,
+                        TokenType::Number,
+                        TokenType::Newline,
+                    ]) {
+                        panic!(
+                            "{:?} was expecting a number, a comma, a number, a comma, a number and a new line. Instead found {:?} and {:?} and {:?} and {:?} and {:?}",
+                            current_token.token_type,
+                            self.tokens[prev].token_type,
+                            self.tokens[prev + 1].token_type,
+                            self.tokens[prev + 2].token_type,
+                            self.tokens[prev + 3].token_type,
+                            self.tokens[prev + 4].token_type,
+                        );
+                    } else {
+                        Parser::machine_code_for_instruction(&current_token);
+                    }
+                }
 
                 TokenType::Newline => {
                     // Do nothing
