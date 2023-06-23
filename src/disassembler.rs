@@ -234,7 +234,7 @@ pub fn parse(source: String) -> Vec<Token> {
     let tokens = scanner.tokenize();
     let mut parser = Parser::new(tokens);
 
-    parser.parse();
+    let _machine_code = parser.parse();
     return parser.tokens;
 }
 
@@ -253,6 +253,8 @@ impl Parser {
     fn parse(&mut self) -> Vec<u8> {
         let mut machine_code = Vec::with_capacity(100);
         while self.current < self.tokens.len() {
+            println!("Machine code so far {:X?}", &machine_code);
+
             let current_token = self.tokens[self.current].clone();
             self.advance();
             match current_token.token_type {
@@ -266,25 +268,31 @@ impl Parser {
                             self.next_token().token_type
                         );
                     }
-                    machine_code
-                        .extend_from_slice(Parser::machine_code_for_instruction(&current_token));
+                    machine_code.append(&mut Parser::machine_code_for_instruction(
+                        &current_token,
+                        &[],
+                    ));
                 }
                 TokenType::JP | TokenType::Call | TokenType::SKP | TokenType::SKNP => {
                     let prev = self.current;
+                    let following_tokens = self.tokens[prev..=prev + 1].to_owned();
                     if !self.match_tokens(&[TokenType::Number, TokenType::Newline]) {
                         panic!(
                             "{:?} was expecting a number and a new line. Instead found {:?} and {:?}",
                             current_token.token_type,
-                            self.tokens[prev].token_type,
-                            // TODO(reece): Bounds check here
-                            self.tokens[prev + 1].token_type,
+                            following_tokens[0].token_type,
+                            following_tokens[1].token_type,
                         );
                     } else {
-                        Parser::machine_code_for_instruction(&current_token);
+                        machine_code.append(&mut Parser::machine_code_for_instruction(
+                            &current_token,
+                            &following_tokens,
+                        ));
                     }
                 }
                 TokenType::LD => {
                     let prev = self.current;
+                    let following_tokens = self.tokens[prev..=prev + 2].to_owned();
                     if !self.match_tokens(&[
                         TokenType::Number,
                         TokenType::Comma,
@@ -299,12 +307,15 @@ impl Parser {
                         panic!(
                             "{:?} was expecting a number, a comma, a number, and a new line, or I, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?}",
                             current_token.token_type,
-                            self.tokens[prev].token_type,
-                            self.tokens[prev + 1].token_type,
-                            self.tokens[prev + 2].token_type,
+                            following_tokens[0].token_type,
+                            following_tokens[1].token_type,
+                            following_tokens[2].token_type,
                         );
                     } else {
-                        Parser::machine_code_for_instruction(&current_token);
+                        machine_code.append(&mut Parser::machine_code_for_instruction(
+                            &current_token,
+                            following_tokens.as_slice(),
+                        ));
                     }
                 }
                 TokenType::SE
@@ -330,7 +341,10 @@ impl Parser {
                             self.tokens[prev + 2].token_type,
                         );
                     } else {
-                        Parser::machine_code_for_instruction(&current_token);
+                        machine_code.append(&mut Parser::machine_code_for_instruction(
+                            &current_token,
+                            &[],
+                        ));
                     }
                 }
                 TokenType::DRAW => {
@@ -353,7 +367,10 @@ impl Parser {
                             self.tokens[prev + 4].token_type,
                         );
                     } else {
-                        Parser::machine_code_for_instruction(&current_token);
+                        machine_code.append(&mut Parser::machine_code_for_instruction(
+                            &current_token,
+                            &[],
+                        ));
                     }
                 }
 
@@ -367,11 +384,61 @@ impl Parser {
         return machine_code;
     }
 
-    fn machine_code_for_instruction(token: &Token) -> &[u8] {
+    /// Assumes there are enough Tokens in following_tokens to generate machine code
+    /// i.e for LD following_tokens would contain at least [Number, Comma, Number, Newline]
+    fn machine_code_for_instruction(
+        instruction_token: &Token,
+        following_tokens: &[Token],
+    ) -> Vec<u8> {
+        // SPEEDUP(reece): Don't just clone the tokens for the following_tokens
         // Might be worth having an intermediate state between Tokens and machine code to make
         // codegen easier. We're going to need to pass a slice of tokens otherwise
-        dbg!(token.token_type);
-        return &[0];
+        // dbg!(token.token_type);
+        let mut machine_code = Vec::new();
+
+        match instruction_token.token_type {
+            TokenType::Comma | TokenType::Newline => {
+                // Do nothing. Should we error though?
+            }
+            TokenType::JP => {
+                let opcode = 0x1;
+                let addr = following_tokens[0].literal.unwrap();
+                let first_byte = opcode << 4 | (addr >> 8) as u8;
+                let last_byte = (addr & 0x00FF) as u8;
+                machine_code.push(first_byte);
+                machine_code.push(last_byte);
+            }
+            TokenType::LD => {
+                // NOTE(reece): Just realised that LD can be used as Vx, byte. Or Vx, Vy.
+                // Tokenizing registers as numbers isn't going to let us distinguish them.
+                // Just found the todo about this from earlier...
+
+                // TODO(reece): Feels weird checking this way and just ignoring the Comma/Newline
+                // tokens. LD is kinda a special case though with all the variants
+
+                if following_tokens[0].token_type == TokenType::Number
+                    && following_tokens[2].token_type == TokenType::Number
+                {
+                    // 6xkk
+                    let mut val = 6;
+                    val = val << 4;
+                    val = val | following_tokens[0].literal.unwrap() as u8;
+                    val = val << 4;
+                    val = val | following_tokens[2].literal.unwrap() as u8;
+
+                    machine_code.push(val);
+                }
+            }
+
+            _ => {
+                todo!()
+            }
+        }
+        println!(
+            "Machine code for {:?}: {:X?}",
+            instruction_token.token_type, &machine_code
+        );
+        return machine_code;
     }
 
     fn next_token(&self) -> &Token {

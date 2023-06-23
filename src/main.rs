@@ -81,8 +81,8 @@ fn main() {
     ];
 
     let assembly_program_v2 = "JP 0x202
-        LD I, 0x200
         LD 0x1, 0x3
+        LD I, 0x200
         LD 0x0, 0x1
         CALL 0x500
         SE 0x2, 0x33
