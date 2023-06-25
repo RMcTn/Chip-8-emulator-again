@@ -398,13 +398,43 @@ impl Parser {
                         ));
                     }
                 }
-                TokenType::ADD
-                | TokenType::OR
-                | TokenType::XOR
-                | TokenType::SUB
-                | TokenType::AND => {
+                TokenType::ADD => {
                     let prev = self.current;
-                    let following_tokens = self.tokens[prev..=prev + 2].to_owned();
+                    let following_tokens = self.tokens[prev..=prev + 3].to_owned();
+                    if !self.match_tokens_consume_if_true(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::Register,
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::Number,
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        TokenType::IRegister,
+                        TokenType::Comma,
+                        TokenType::Register,
+                        TokenType::Newline,
+                    ]) {
+                        panic!(
+                            "{:?} was expecting a register, a comma, a register, and a new line, or a register, a comma, a number, and a new line, or an iregister, a comma, a register, and a new line. Instead found {:?} and {:?} and {:?} and {:?}",
+                            current_token.token_type,
+                            self.tokens[prev].token_type,
+                            self.tokens[prev + 1].token_type,
+                            self.tokens[prev + 2].token_type,
+                            self.tokens[prev + 3].token_type,
+                        );
+                    } else {
+                        machine_code.append(&mut Parser::machine_code_for_instruction(
+                            &current_token,
+                            &following_tokens,
+                        ));
+                    }
+                }
+                TokenType::OR | TokenType::XOR | TokenType::SUB | TokenType::AND => {
+                    let prev = self.current;
+                    let following_tokens = self.tokens[prev..=prev + 3].to_owned();
                     if !self.match_tokens(&[
                         TokenType::Register,
                         TokenType::Comma,
@@ -412,11 +442,12 @@ impl Parser {
                         TokenType::Newline,
                     ]) {
                         panic!(
-                            "{:?} was expecting a register, a comma, a register, and a new line. Instead found {:?} and {:?} and {:?}",
+                            "{:?} was expecting a register, a comma, a register, and a new line. Instead found {:?} and {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.tokens[prev].token_type,
                             self.tokens[prev + 1].token_type,
                             self.tokens[prev + 2].token_type,
+                            self.tokens[prev + 3].token_type,
                         );
                     } else {
                         machine_code.append(&mut Parser::machine_code_for_instruction(
@@ -436,13 +467,14 @@ impl Parser {
                         TokenType::Newline,
                     ]) {
                         panic!(
-                            "{:?} was expecting a number, a comma, a number, a comma, a number and a new line. Instead found {:?} and {:?} and {:?} and {:?} and {:?}",
+                            "{:?} was expecting a number, a comma, a number, a comma, a number and a new line. Instead found {:?} and {:?} and {:?} and {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.tokens[prev].token_type,
                             self.tokens[prev + 1].token_type,
                             self.tokens[prev + 2].token_type,
                             self.tokens[prev + 3].token_type,
                             self.tokens[prev + 4].token_type,
+                            self.tokens[prev + 5].token_type,
                         );
                     } else {
                         machine_code.append(&mut Parser::machine_code_for_instruction(
@@ -634,16 +666,48 @@ impl Parser {
                 machine_code.push(second_byte);
             }
             TokenType::ADD => {
-                // 8xy4
-                let mut first_byte = 8;
-                first_byte = first_byte << 4;
-                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
-                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
-                second_byte = second_byte << 4;
-                second_byte = second_byte | 4;
+                let token_types_to_consider = [
+                    following_tokens[0].token_type,
+                    following_tokens[2].token_type,
+                ];
 
-                machine_code.push(first_byte);
-                machine_code.push(second_byte);
+                match token_types_to_consider {
+                    [TokenType::Register, TokenType::Number] => {
+                        // 7xkk
+                        let mut first_byte = 7;
+                        first_byte = first_byte << 4;
+                        first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                        let second_byte = following_tokens[2].literal.unwrap() as u8;
+
+                        machine_code.push(first_byte);
+                        machine_code.push(second_byte);
+                    }
+                    [TokenType::Register, TokenType::Register] => {
+                        // 8xy4
+                        let mut first_byte = 8;
+                        first_byte = first_byte << 4;
+                        first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                        let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                        second_byte = second_byte << 4;
+                        second_byte = second_byte | 4;
+
+                        machine_code.push(first_byte);
+                        machine_code.push(second_byte);
+                    }
+                    [TokenType::IRegister, TokenType::Register] => {
+                        // Fx1E
+                        let mut first_byte = 0xF;
+                        first_byte = first_byte << 4;
+                        first_byte =
+                            first_byte | (following_tokens[2].literal.unwrap() & 0xF) as u8;
+                        let second_byte = 0x1E;
+
+                        machine_code.push(first_byte);
+                        machine_code.push(second_byte);
+                    }
+
+                    x => todo!("Unimplemented or invalid machine code for {:?}.", x),
+                }
             }
             TokenType::SUB => {
                 // 8xy5
