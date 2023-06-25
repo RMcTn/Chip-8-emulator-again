@@ -312,19 +312,19 @@ impl Parser {
                 TokenType::LD => {
                     let prev = self.current;
                     let following_tokens = self.tokens[prev..=prev + 2].to_owned();
-                    if !self.match_tokens(&[
+                    if !self.match_tokens_consume_if_true(&[
                         TokenType::IRegister,
                         TokenType::Comma,
                         TokenType::Number,
                         TokenType::Newline,
                         // TODO(reece): These match token calls advance the position we're looking
                         // at. Can't use these back to back
-                    ]) && !self.match_tokens(&[
+                    ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
                         TokenType::Number,
                         TokenType::Newline,
-                    ]) && !self.match_tokens(&[
+                    ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
                         TokenType::Register,
@@ -349,12 +349,12 @@ impl Parser {
                 TokenType::SE | TokenType::SNE => {
                     let prev = self.current;
                     let following_tokens = self.tokens[prev..=prev + 2].to_owned();
-                    if !self.match_tokens(&[
+                    if !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
                         TokenType::Register,
                         TokenType::Newline,
-                    ]) && !self.match_tokens(&[
+                    ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
                         TokenType::Number,
@@ -694,9 +694,32 @@ impl Parser {
         }
         return self.next_token().token_type == token_type;
     }
+    fn check_at(&self, token_type: TokenType, idx: usize) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        // TODO(reece): Bounds check
+        return self.tokens[idx].token_type == token_type;
+    }
+
+    fn check_all(&self, token_types: &[TokenType]) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        for (i, token_type) in token_types.iter().enumerate() {
+            if !self.check_at(*token_type, self.current + i) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     fn advance(&mut self) {
         self.current += 1;
+    }
+
+    fn advance_by(&mut self, amount: usize) {
+        self.current += amount;
     }
 
     /// Consumes the current_token if it matches the given token type, advancing when matching
@@ -711,9 +734,25 @@ impl Parser {
         return true;
     }
 
+    /// Consumes the given tokens if they match, advancing only if ALL tokens match
+    /// Useful for instructions that have many different forms (Like SE accepting registers or
+    /// number), so we don't skip over the same tokens we're trying to match against.
+    fn match_tokens_consume_if_true(&mut self, token_types: &[TokenType]) -> bool {
+        if self.check_all(token_types) {
+            self.advance_by(token_types.len());
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     fn is_at_end(&self) -> bool {
         // TODO(reece): DRAW is just a stand in until we decide what end means
-        return self.next_token().token_type == TokenType::DRAW;
+        if self.next_token().token_type == TokenType::DRAW {
+            panic!("Time to decide an actual end token intead of DRAW");
+        } else {
+            return false;
+        }
     }
 }
 
