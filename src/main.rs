@@ -81,6 +81,8 @@ fn main() {
     ];
 
     let assembly_program_v2 = "JP 0x202
+        SKP 0x5
+        SKNP 0x5
         LD V1, 0x3
         LD I, 0x200
         LD VA, 0x1
@@ -94,8 +96,6 @@ fn main() {
         SUB 0xA, 0x2
         RND 0x2, 0x55
         DRW 0x1, 0x2, 0x5
-        SKP 0x5
-        SKNP 0x5
         RET
         CLS
         "

@@ -409,7 +409,7 @@ impl Parser {
     }
 
     /// Assumes there are enough Tokens in following_tokens to generate machine code
-    /// i.e for LD following_tokens would contain at least [Number, Comma, Number, Newline]
+    /// i.e for LD following_tokens would contain at least [Register, Comma, Number, Newline]
     fn machine_code_for_instruction(
         instruction_token: &Token,
         following_tokens: &[Token],
@@ -424,13 +424,40 @@ impl Parser {
             TokenType::Comma | TokenType::Newline => {
                 // Do nothing. Should we error though?
             }
+            // TODO(reece): Fair bit of repitition here, any chance of minimizing?
             TokenType::JP => {
+                // 1nnn
                 let opcode = 0x1;
                 let addr = following_tokens[0].literal.unwrap();
                 let first_byte = opcode << 4 | (addr >> 8) as u8;
-                let last_byte = (addr & 0x00FF) as u8;
+                let second_byte = (addr & 0x00FF) as u8;
                 machine_code.push(first_byte);
-                machine_code.push(last_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::Call => {
+                // 2nnn
+                let opcode = 0x2;
+                let addr = following_tokens[0].literal.unwrap();
+                let first_byte = opcode << 4 | (addr >> 8) as u8;
+                let second_byte = (addr & 0x00FF) as u8;
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::SKP => {
+                // Ex9E
+                let opcode = 0xE;
+                let first_byte = opcode << 4 | (following_tokens[0].literal.unwrap() & 0xF) as u8;
+                let second_byte = 0x9E;
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::SKNP => {
+                // ExA1
+                let opcode = 0xE;
+                let first_byte = opcode << 4 | (following_tokens[0].literal.unwrap() & 0xF) as u8;
+                let second_byte = 0xA1;
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
             }
             TokenType::LD => {
                 let token_types_to_consider = [
