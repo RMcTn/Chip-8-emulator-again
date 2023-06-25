@@ -31,7 +31,9 @@ pub enum TokenType {
     Addr,
     Comma,
     IRegister,
-    Newline, // Newline used at the terminator for most statements
+    Newline,
+    // Newline used at the terminator for most statements
+    Register,
 }
 
 enum OpcodeType {
@@ -151,6 +153,15 @@ impl Scanner {
                 word: self.source_as_chars[self.start_char_idx..self.current_char_idx].to_owned(),
                 literal: None,
             }),
+            'V' => {
+                let register_val = self.parse_hex_number();
+                return Some(Token {
+                    token_type: TokenType::Register,
+                    word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
+                        .to_owned(),
+                    literal: Some(register_val),
+                });
+            }
             _ => {
                 if ch.is_alphabetic() {
                     // TODO(reece): Handle this unwrap
@@ -178,7 +189,6 @@ impl Scanner {
     }
 
     fn parse_instruction(&mut self) -> Option<TokenType> {
-        // TODO(reece): Rename this from parse instruction because it does more than that
         while self.peek().is_alphabetic() && !self.next_char_is(',') {
             self.advance();
         }
@@ -200,10 +210,17 @@ impl Scanner {
             self.advance();
         }
 
-        let num_as_string: String = self.source_as_chars
-            [self.start_char_idx + 2..self.current_char_idx]
-            .iter()
-            .collect();
+        // TODO(reece): ROBUSTNESS: Handle V without a register defined immediately afterwards
+        let num_as_string: String;
+        if self.source_as_chars[self.start_char_idx] == 'V' {
+            num_as_string = self.source_as_chars[self.start_char_idx + 1..self.current_char_idx]
+                .iter()
+                .collect();
+        } else {
+            num_as_string = self.source_as_chars[self.start_char_idx + 2..self.current_char_idx]
+                .iter()
+                .collect();
+        }
 
         // Seems like a safe unwrap (ignoring numbers too big!)
         let num = u16::from_str_radix(&num_as_string, 16).unwrap();
