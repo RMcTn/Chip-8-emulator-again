@@ -311,18 +311,25 @@ impl Parser {
                     let prev = self.current;
                     let following_tokens = self.tokens[prev..=prev + 2].to_owned();
                     if !self.match_tokens(&[
-                        TokenType::Number,
-                        TokenType::Comma,
-                        TokenType::Number,
-                        TokenType::Newline,
-                    ]) && !self.match_tokens(&[
                         TokenType::IRegister,
                         TokenType::Comma,
                         TokenType::Number,
                         TokenType::Newline,
+                    ]) && !self.match_tokens(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::Number,
+                        TokenType::Newline,
+                    ]) && !self.match_tokens(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::Register,
+                        TokenType::Newline,
                     ]) {
+                        // TODO(reece): Better way for parsing messages here. Could just have our
+                        // slices of expected Tokens be the thing we create the message from
                         panic!(
-                            "{:?} was expecting a number, a comma, a number, and a new line, or I, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?}",
+                            "{:?} was expecting I, a comma, a number, and a new line, or register, comma, number, newline, or register, comma, number, register.. Instead found {:?} and {:?} and {:?}",
                             current_token.token_type,
                             following_tokens[0].token_type,
                             following_tokens[1].token_type,
@@ -426,24 +433,45 @@ impl Parser {
                 machine_code.push(last_byte);
             }
             TokenType::LD => {
-                // NOTE(reece): Just realised that LD can be used as Vx, byte. Or Vx, Vy.
-                // Tokenizing registers as numbers isn't going to let us distinguish them.
-                // Just found the todo about this from earlier...
+                let token_types_to_consider = [
+                    following_tokens[0].token_type,
+                    following_tokens[2].token_type,
+                ];
 
-                // TODO(reece): Feels weird checking this way and just ignoring the Comma/Newline
-                // tokens. LD is kinda a special case though with all the variants
+                match token_types_to_consider {
+                    [TokenType::Register, TokenType::Number] => {
+                        // 6xkk
+                        let mut first_byte = 6;
+                        first_byte = first_byte << 4;
+                        first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                        let second_byte = following_tokens[2].literal.unwrap() as u8;
 
-                if following_tokens[0].token_type == TokenType::Number
-                    && following_tokens[2].token_type == TokenType::Number
-                {
-                    // 6xkk
-                    let mut val = 6;
-                    val = val << 4;
-                    val = val | following_tokens[0].literal.unwrap() as u8;
-                    val = val << 4;
-                    val = val | following_tokens[2].literal.unwrap() as u8;
+                        machine_code.push(first_byte);
+                        machine_code.push(second_byte);
+                    }
+                    [TokenType::Register, TokenType::Register] => {
+                        // 8xy0
+                        let mut first_byte = 8;
+                        first_byte = first_byte << 4;
+                        first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                        let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                        second_byte = second_byte << 4;
 
-                    machine_code.push(val);
+                        machine_code.push(first_byte);
+                        machine_code.push(second_byte);
+                    }
+                    [TokenType::IRegister, TokenType::Number] => {
+                        // Annn
+                        let mut first_byte = 0xA;
+                        let addr = following_tokens[2].literal.unwrap();
+                        first_byte = first_byte << 4;
+                        first_byte = first_byte | ((addr >> 8) & 0xF) as u8;
+                        let second_byte = (addr & 0xFF) as u8;
+
+                        machine_code.push(first_byte);
+                        machine_code.push(second_byte);
+                    }
+                    x => todo!("Unimplemented or invalid machine code for {:?}.", x),
                 }
             }
 
