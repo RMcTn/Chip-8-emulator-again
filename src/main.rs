@@ -81,8 +81,9 @@ fn main() {
     ];
 
     let assembly_program_v2 = "JP 0x202
+        SE V2, 0x33
+        SE VC, 0x31
         AND 0xA, 0x2
-        SE 0x2, 0x33
         SKP 0x5
         SKNP 0x5
         LD V1, 0x3
