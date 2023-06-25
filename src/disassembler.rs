@@ -430,9 +430,7 @@ impl Parser {
                 }
             }
 
-            _ => {
-                todo!()
-            }
+            unimplemented_token => todo!("{:?}", unimplemented_token),
         }
         println!(
             "Machine code for {:?}: {:X?}",
