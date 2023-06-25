@@ -733,6 +733,16 @@ impl Parser {
                 machine_code.push(first_byte);
                 machine_code.push(second_byte);
             }
+            TokenType::RND => {
+                // Cxkk
+                let mut first_byte = 0xC;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let second_byte = following_tokens[2].literal.unwrap() as u8;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
 
             unimplemented_token => todo!("{:?}", unimplemented_token),
         }
