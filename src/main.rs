@@ -95,10 +95,11 @@ fn main() {
         ADD VA, VB
         ADD I, VB
         ADD VC, 0x2
-        OR 0xA, 0x2
-        XOR 0xA, 0x2
-        SUB 0xA, 0x2
-        RND 0x2, 0x55
+        OR VA, V2
+        XOR VA, V2
+        SUB VA, V2
+        SUB VA, V2
+        RND V2, 0x55
         DRW 0x1, 0x2, 0x5
         RET
         CLS
