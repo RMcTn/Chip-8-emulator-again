@@ -83,14 +83,17 @@ fn main() {
     let assembly_program_v2 = "JP 0x202
         SE V2, 0x33
         SE VC, VA
-        AND 0xA, 0x2
+        AND VA, V2
         SKP 0x5
         SKNP 0x5
         LD V1, 0x3
         LD I, 0x200
         LD VA, 0x1
         CALL 0x500
-        SNE 0xC, 0xAA
+        SNE VC, VA
+        SNE VC, 0xAA
+        ADD VA, VB
+        ADD I, VB
         ADD 0xA, 0x2
         OR 0xA, 0x2
         XOR 0xA, 0x2
