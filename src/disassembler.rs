@@ -17,6 +17,7 @@ pub enum TokenType {
     // treat Vx like 0x3 for example, since 0x3 could mean Vy, or just byte
     ADD,
     SUB,
+    SUBN,
     AND,
     XOR,
     OR,
@@ -81,6 +82,7 @@ impl Scanner {
             ("SNE".to_string(), TokenType::SNE),
             ("ADD".to_string(), TokenType::ADD),
             ("SUB".to_string(), TokenType::SUB),
+            ("SUBN".to_string(), TokenType::SUBN),
             ("AND".to_string(), TokenType::AND),
             ("XOR".to_string(), TokenType::XOR),
             ("OR".to_string(), TokenType::OR),
@@ -351,6 +353,7 @@ impl Parser {
                 | TokenType::RND
                 | TokenType::AND => {
                     let prev = self.current;
+                    let following_tokens = self.tokens[prev..=prev + 2].to_owned();
                     if !self.match_tokens(&[
                         TokenType::Number,
                         TokenType::Comma,
@@ -367,7 +370,7 @@ impl Parser {
                     } else {
                         machine_code.append(&mut Parser::machine_code_for_instruction(
                             &current_token,
-                            &[],
+                            &following_tokens,
                         ));
                     }
                 }
@@ -500,6 +503,100 @@ impl Parser {
                     }
                     x => todo!("Unimplemented or invalid machine code for {:?}.", x),
                 }
+            }
+
+            TokenType::SE => {
+                // 3xkk
+                // TODO(reece): The register version
+                let mut first_byte = 3;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let second_byte = following_tokens[2].literal.unwrap() as u8;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::SNE => {
+                // 9xy0
+                let mut first_byte = 9;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let second_byte = following_tokens[2].literal.unwrap() as u8;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::OR => {
+                // 8xy1
+                let mut first_byte = 8;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | 1;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::AND => {
+                // 8xy2
+                let mut first_byte = 8;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | 2;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::XOR => {
+                // 8xy3
+                let mut first_byte = 8;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | 3;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::ADD => {
+                // 8xy4
+                let mut first_byte = 8;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | 4;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::SUB => {
+                // 8xy5
+                let mut first_byte = 8;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | 5;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::SUBN => {
+                // 8xy7
+                let mut first_byte = 8;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | 7;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
             }
 
             unimplemented_token => todo!("{:?}", unimplemented_token),
