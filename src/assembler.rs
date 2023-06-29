@@ -844,7 +844,7 @@ impl Parser {
     }
 }
 
-pub fn disassemble(lines: Vec<String>) -> Vec<u8> {
+pub fn assemble(lines: Vec<String>) -> Vec<u8> {
     // Assume no labels for now
     let instruction_to_opcode_map = make_instruction_to_opcode_mapping();
 
