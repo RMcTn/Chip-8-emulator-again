@@ -251,10 +251,15 @@ impl Scanner {
 pub fn parse(source: String) -> Vec<Token> {
     let mut scanner = Scanner::new(source);
     let tokens = scanner.tokenize();
-    let mut parser = Parser::new(tokens);
+    return tokens;
+}
 
-    let _machine_code = parser.parse();
-    return parser.tokens;
+pub fn assemble(source: String) -> Vec<u8> {
+    let tokens = parse(source);
+    // TODO(reece): Starting to get confusing with these conflicting parser names
+    let mut parser = Parser::new(tokens);
+    let machine_code = parser.parse();
+    return machine_code;
 }
 
 struct Parser {
@@ -279,7 +284,7 @@ impl Parser {
             match current_token.token_type {
                 TokenType::CLS | TokenType::RET => {
                     let prev = self.current;
-                    let following_tokens = self.tokens[prev..=prev + 1].to_owned();
+                    let following_tokens = self.tokens[prev..=prev].to_owned();
                     if !self.next_token_is_newline() {
                         // TODO(reece): Some way to do line counts for better error messages
                         // TODO(reece): Better error handling for parser errors
@@ -460,16 +465,17 @@ impl Parser {
                 }
                 TokenType::DRAW => {
                     let prev = self.current;
+                    let following_tokens = self.tokens[prev..=prev + 5].to_owned();
                     if !self.match_tokens(&[
-                        TokenType::Number,
+                        TokenType::Register,
                         TokenType::Comma,
-                        TokenType::Number,
+                        TokenType::Register,
                         TokenType::Comma,
                         TokenType::Number,
                         TokenType::Newline,
                     ]) {
                         panic!(
-                            "{:?} was expecting a number, a comma, a number, a comma, a number and a new line. Instead found {:?} and {:?} and {:?} and {:?} and {:?} and {:?}",
+                            "{:?} was expecting a register, a comma, a register, a comma, a number and a new line. Instead found {:?} and {:?} and {:?} and {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.tokens[prev].token_type,
                             self.tokens[prev + 1].token_type,
@@ -481,7 +487,7 @@ impl Parser {
                     } else {
                         machine_code.append(&mut Parser::machine_code_for_instruction(
                             &current_token,
-                            &[],
+                            &following_tokens,
                         ));
                     }
                 }
@@ -757,6 +763,17 @@ impl Parser {
                 machine_code.push(first_byte);
                 machine_code.push(second_byte);
             }
+            TokenType::DRAW => {
+                let mut first_byte = 0xD;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | (following_tokens[4].literal.unwrap() as u8 & 0xF);
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
 
             unimplemented_token => todo!("{:?}", unimplemented_token),
         }
@@ -844,7 +861,7 @@ impl Parser {
     }
 }
 
-pub fn assemble(lines: Vec<String>) -> Vec<u8> {
+pub fn assemble_old(lines: Vec<String>) -> Vec<u8> {
     // Assume no labels for now
     let instruction_to_opcode_map = make_instruction_to_opcode_mapping();
 

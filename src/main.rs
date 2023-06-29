@@ -106,8 +106,10 @@ fn main() {
         "
     .to_string();
 
-    let tokens = assembler::parse(assembly_program_v2);
-    dbg!(tokens);
+    let file_contents = std::fs::read_to_string("./test_assembly_programs/maze.asm").unwrap();
+    dbg!(&file_contents);
+    let machine_code = assembler::assemble(file_contents);
+    dbg!(&machine_code);
 
     let keymap = default_keymap();
 
