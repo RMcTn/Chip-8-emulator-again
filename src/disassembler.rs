@@ -278,6 +278,8 @@ impl Parser {
             self.advance();
             match current_token.token_type {
                 TokenType::CLS | TokenType::RET => {
+                    let prev = self.current;
+                    let following_tokens = self.tokens[prev..=prev + 1].to_owned();
                     if !self.next_token_is_newline() {
                         // TODO(reece): Some way to do line counts for better error messages
                         // TODO(reece): Better error handling for parser errors
@@ -289,7 +291,7 @@ impl Parser {
                     }
                     machine_code.append(&mut Parser::machine_code_for_instruction(
                         &current_token,
-                        &[],
+                        &following_tokens,
                     ));
                 }
                 TokenType::JP | TokenType::Call | TokenType::SKP | TokenType::SKNP => {
@@ -511,6 +513,18 @@ impl Parser {
                 // Do nothing. Should we error though?
             }
             // TODO(reece): Fair bit of repitition here, any chance of minimizing?
+            TokenType::RET => {
+                let first_byte = 0x00;
+                let second_byte = 0xEE;
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::CLS => {
+                let first_byte = 0x00;
+                let second_byte = 0xE0;
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
             TokenType::JP => {
                 // 1nnn
                 let opcode = 0x1;

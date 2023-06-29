@@ -126,6 +126,8 @@ impl Chip8 {
         match first_nibble_first_byte {
             0x0 => match last_byte(opcode) {
                 0xE0 => {
+                    // 00E0 - CLS
+                    // Clear the display
                     self.display_buffer =
                         [false; CHIP_DISPLAY_WIDTH_IN_PIXELS * CHIP_DISPLAY_HEIGHT_IN_PIXELS];
                     self.increment_pc();

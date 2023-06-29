@@ -100,9 +100,9 @@ fn main() {
         SUB VA, V2
         SUB VA, V2
         RND V2, 0x55
-        DRW 0x1, 0x2, 0x5
         RET
         CLS
+        DRW 0x1, 0x2, 0x5
         "
     .to_string();
 
