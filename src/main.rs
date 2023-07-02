@@ -1,5 +1,6 @@
 mod assembler;
 mod chip;
+mod scanner;
 
 use chip::*;
 
