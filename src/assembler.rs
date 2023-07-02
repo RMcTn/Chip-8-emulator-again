@@ -183,6 +183,14 @@ impl Scanner {
                     })
                 } else if ch.is_whitespace() {
                     None
+                } else if ch.is_ascii_digit() {
+                    let val = self.parse_decimal_number();
+                    Some(Token {
+                        token_type: TokenType::Number,
+                        word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
+                            .to_owned(),
+                        literal: Some(val),
+                    })
                 } else {
                     todo!()
                 }
@@ -226,6 +234,21 @@ impl Scanner {
 
         // Seems like a safe unwrap (ignoring numbers too big!)
         let num = u16::from_str_radix(&num_as_string, 16).unwrap();
+        return num;
+    }
+
+    fn parse_decimal_number(&mut self) -> u16 {
+        while self.peek().is_ascii_digit() {
+            self.advance();
+        }
+
+        let num_as_string: String;
+        num_as_string = self.source_as_chars[self.start_char_idx..self.current_char_idx]
+            .iter()
+            .collect();
+
+        // Seems like a safe unwrap (ignoring numbers too big!)
+        let num = u16::from_str_radix(&num_as_string, 10).unwrap();
         return num;
     }
 
