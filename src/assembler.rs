@@ -495,7 +495,17 @@ impl Parser {
                 TokenType::Newline => {
                     // Do nothing
                 }
-                unimplemented_token => todo!("{:?}", unimplemented_token),
+                TokenType::SUBN => todo!(),
+                TokenType::Number
+                | TokenType::Addr
+                | TokenType::Comma
+                | TokenType::IRegister
+                | TokenType::Register => {
+                    panic!(
+                        "Was not expecting a {:?} ({:?})",
+                        current_token.token_type, current_token.word
+                    );
+                }
             }
         }
 
