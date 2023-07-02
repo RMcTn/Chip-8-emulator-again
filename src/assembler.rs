@@ -646,3 +646,15 @@ impl Parser {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_assembles_maze() {
+        let maze_assembly = std::fs::read_to_string("./test_programs/maze.asm").unwrap();
+        let maze_machine_code = std::fs::read("./test_programs/maze.ch8").unwrap();
+        assert_eq!(assemble(maze_assembly), maze_machine_code);
+    }
+}
