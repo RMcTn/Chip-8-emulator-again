@@ -269,17 +269,17 @@ impl Scanner {
     }
 }
 
-pub fn parse(source: String) -> Vec<Token> {
+pub fn tokenize(source: String) -> Vec<Token> {
     let mut scanner = Scanner::new(source);
     let tokens = scanner.tokenize();
     return tokens;
 }
 
 pub fn assemble(source: String) -> Vec<u8> {
-    let tokens = parse(source);
+    let tokens = tokenize(source);
     // TODO(reece): Starting to get confusing with these conflicting parser names
     let mut parser = Parser::new(tokens);
-    let machine_code = parser.parse();
+    let machine_code = parser.generate_machine_code();
     return machine_code;
 }
 
@@ -295,7 +295,7 @@ impl Parser {
 
     /// Any instruction that uses a register specified by hexadecimal will be assumed to be valid
     /// for now
-    fn parse(&mut self) -> Vec<u8> {
+    fn generate_machine_code(&mut self) -> Vec<u8> {
         let mut machine_code = Vec::with_capacity(100);
         while self.current < self.tokens.len() {
             println!("Machine code so far {:X?}", &machine_code);
