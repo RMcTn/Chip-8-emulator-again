@@ -1,10 +1,6 @@
-use std::{collections::HashMap, panic, todo};
+use std::{panic, todo};
 
 use crate::scanner::{tokenize, Token, TokenType};
-
-fn make_instruction_to_opcode_mapping() -> HashMap<&'static str, u8> {
-    HashMap::from([("JP", 0x1), ("LD I", 0xA)])
-}
 
 pub fn assemble(source: String) -> Vec<u8> {
     let tokens = tokenize(source);
@@ -77,8 +73,6 @@ impl Parser {
                         TokenType::Comma,
                         TokenType::Number,
                         TokenType::Newline,
-                        // TODO(reece): These match token calls advance the position we're looking
-                        // at. Can't use these back to back
                     ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,

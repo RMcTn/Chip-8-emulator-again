@@ -160,7 +160,8 @@ impl Chip8 {
                 // 2nnn - CALL addr
                 // Call subroutine at nnn.
 
-                // TODO(reece): Pretty sure this means we're missing out the first stack place always
+                // Yes, we're missing out the first stack place always, but that is the specified
+                // behaviour
                 self.stack_pointer += 1;
                 self.stack[self.stack_pointer as usize] = self.program_counter as u16;
                 self.program_counter = (opcode & 0x0FFF) as usize;
