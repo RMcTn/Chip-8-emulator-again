@@ -6,15 +6,11 @@ fn make_instruction_to_opcode_mapping() -> HashMap<&'static str, u8> {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TokenType {
-    // TODO(reece): Going to keep the 0x1 syntax for chosing register 1 for now, maybe move to
-    // Vx later
     LD,
     JP,
     Call,
     SE,
     SNE,
-    // TODO(reece): ADD Vx, Vy and ADD Vx, byte are going to be indistinguishable if we just
-    // treat Vx like 0x3 for example, since 0x3 could mean Vy, or just byte
     ADD,
     SUB,
     SUBN,
@@ -27,6 +23,8 @@ pub enum TokenType {
     SKNP,
     RET,
     CLS,
+    SHL,
+    SHR,
     Number,
     // Not sure if we want this yet!
     Addr,
@@ -529,6 +527,10 @@ impl Parser {
                         current_token.token_type, current_token.word
                     );
                 }
+                unimplemented_opcode => todo!(
+                    "Unimplemented opcode for code gen {:?}",
+                    unimplemented_opcode
+                ),
             }
         }
 
