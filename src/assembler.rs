@@ -90,6 +90,8 @@ impl Scanner {
             ("SKNP".to_string(), TokenType::SKNP),
             ("RET".to_string(), TokenType::RET),
             ("CLS".to_string(), TokenType::CLS),
+            ("SHL".to_string(), TokenType::SHL),
+            ("SHR".to_string(), TokenType::SHR),
         ]);
 
         let scanner = Scanner {
@@ -277,7 +279,6 @@ pub fn tokenize(source: String) -> Vec<Token> {
 
 pub fn assemble(source: String) -> Vec<u8> {
     let tokens = tokenize(source);
-    // TODO(reece): Starting to get confusing with these conflicting parser names
     let mut parser = Parser::new(tokens);
     let machine_code = parser.generate_machine_code();
     return machine_code;
@@ -464,7 +465,9 @@ impl Parser {
                 | TokenType::XOR
                 | TokenType::SUB
                 | TokenType::AND
-                | TokenType::SUBN => {
+                | TokenType::SUBN
+                | TokenType::SHL
+                | TokenType::SHR => {
                     let prev = self.current;
                     let following_tokens = self.tokens[prev..=prev + 3].to_owned();
                     if !self.match_tokens(&[
@@ -530,10 +533,6 @@ impl Parser {
                         current_token.token_type, current_token.word
                     );
                 }
-                unimplemented_opcode => todo!(
-                    "Unimplemented opcode for code gen {:?}",
-                    unimplemented_opcode
-                ),
             }
         }
 
@@ -809,6 +808,30 @@ impl Parser {
                 let mut second_byte = following_tokens[2].literal.unwrap() as u8;
                 second_byte = second_byte << 4;
                 second_byte = second_byte | (following_tokens[4].literal.unwrap() as u8 & 0xF);
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::SHL => {
+                // 8xyE
+                let mut first_byte = 0x8;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | 0xE;
+
+                machine_code.push(first_byte);
+                machine_code.push(second_byte);
+            }
+            TokenType::SHR => {
+                // 8xy6
+                let mut first_byte = 0x8;
+                first_byte = first_byte << 4;
+                first_byte = first_byte | following_tokens[0].literal.unwrap() as u8;
+                let mut second_byte = following_tokens[2].literal.unwrap() as u8;
+                second_byte = second_byte << 4;
+                second_byte = second_byte | 0x6;
+
                 machine_code.push(first_byte);
                 machine_code.push(second_byte);
             }
