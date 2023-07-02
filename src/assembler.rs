@@ -460,7 +460,11 @@ impl Parser {
                         ));
                     }
                 }
-                TokenType::OR | TokenType::XOR | TokenType::SUB | TokenType::AND => {
+                TokenType::OR
+                | TokenType::XOR
+                | TokenType::SUB
+                | TokenType::AND
+                | TokenType::SUBN => {
                     let prev = self.current;
                     let following_tokens = self.tokens[prev..=prev + 3].to_owned();
                     if !self.match_tokens(&[
@@ -516,7 +520,6 @@ impl Parser {
                 TokenType::Newline => {
                     // Do nothing
                 }
-                TokenType::SUBN => todo!(),
                 TokenType::Number
                 | TokenType::Addr
                 | TokenType::Comma
