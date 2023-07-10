@@ -29,6 +29,8 @@ pub enum TokenType {
     Newline,
     // Newline used at the terminator for most statements
     Register,
+    Label,
+    Colon,
 }
 
 #[derive(Debug, Clone)]
@@ -113,6 +115,11 @@ impl Scanner {
         let ch = self.source_as_chars[self.current_char_idx];
         self.advance();
         match ch {
+            ':' => Some(Token {
+                token_type: TokenType::Colon,
+                word: self.source_as_chars[self.start_char_idx..self.current_char_idx].to_owned(),
+                literal: None,
+            }),
             '0' => {
                 if self.next_char_is('x') {
                     self.advance();
@@ -143,14 +150,28 @@ impl Scanner {
             }
             _ => {
                 if ch.is_alphabetic() {
-                    // TODO(reece): Handle this unwrap
-                    let token_type = self.parse_instruction().unwrap();
-                    Some(Token {
-                        token_type,
-                        word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
-                            .to_owned(),
-                        literal: None,
-                    })
+                    if let Some(instruction_token_type) = self.parse_instruction() {
+                        return Some(Token {
+                            token_type: instruction_token_type,
+                            word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
+                                .to_owned(),
+                            literal: None,
+                        });
+                    } else {
+                        // Try parse a label/identifier
+                        while self.peek().is_alphabetic() {
+                            self.advance();
+                        }
+                        let label =
+                            &self.source_as_chars[self.start_char_idx..self.current_char_idx];
+                        dbg!(&label);
+                        // SPEEDUP(reece): Don't clone the string
+                        Some(Token {
+                            token_type: TokenType::Label,
+                            word: label.to_owned(),
+                            literal: None,
+                        })
+                    }
                 } else if ch == '\n' {
                     Some(Token {
                         token_type: TokenType::Newline,

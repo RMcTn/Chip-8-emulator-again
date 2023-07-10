@@ -248,9 +248,13 @@ impl Parser {
                 TokenType::Newline => {
                     // Do nothing
                 }
+                TokenType::Label => {
+                    todo!("Still to implement code gen with labels")
+                }
                 TokenType::Number
                 | TokenType::Addr
                 | TokenType::Comma
+                | TokenType::Colon
                 | TokenType::IRegister
                 | TokenType::Register => {
                     panic!(
