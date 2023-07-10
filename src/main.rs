@@ -85,7 +85,7 @@ fn main() {
         "
     .to_string();
 
-    let file_contents = std::fs::read_to_string("./test_assembly_programs/maze.asm").unwrap();
+    let file_contents = std::fs::read_to_string("./test_programs/maze.asm").unwrap();
     dbg!(&file_contents);
     let machine_code = assembler::assemble(file_contents);
     dbg!(&machine_code);
