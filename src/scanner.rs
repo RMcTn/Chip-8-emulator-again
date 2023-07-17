@@ -30,7 +30,16 @@ pub enum TokenType {
     // Newline used at the terminator for most statements
     Register,
     Label,
+    LabelIdentifier,
     Colon,
+    NumericalValue(NumericalValue),
+}
+
+/// This is used as a way to represent the valid values for numerical operands of instructions
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NumericalValue {
+    Number,
+    Label,
 }
 
 #[derive(Debug, Clone)]
@@ -115,17 +124,29 @@ impl Scanner {
         let ch = self.source_as_chars[self.current_char_idx];
         self.advance();
         match ch {
-            ':' => Some(Token {
-                token_type: TokenType::Colon,
-                word: self.source_as_chars[self.start_char_idx..self.current_char_idx].to_owned(),
-                literal: None,
-            }),
+            ':' => {
+                if !self.peek().is_alphabetic() {
+                    panic!("Was expecting a label name after :");
+                }
+                // Try parse a label/identifier
+                while self.peek().is_alphabetic() {
+                    self.advance();
+                }
+                let label = &self.source_as_chars[self.start_char_idx..self.current_char_idx];
+                dbg!(&label);
+                // SPEEDUP(reece): Don't clone the string
+                Some(Token {
+                    token_type: TokenType::LabelIdentifier,
+                    word: label.to_owned(),
+                    literal: None,
+                })
+            }
             '0' => {
                 if self.next_char_is('x') {
                     self.advance();
                     let val = self.parse_hex_number();
                     Some(Token {
-                        token_type: TokenType::Number,
+                        token_type: TokenType::NumericalValue(NumericalValue::Number),
                         word: self.source_as_chars[self.start_char_idx..self.current_char_idx]
                             .to_owned(),
                         literal: Some(val),

@@ -1,10 +1,11 @@
-use std::{panic, todo};
+use std::{collections::HashMap, format, panic, todo};
 
-use crate::scanner::{tokenize, Token, TokenType};
+use crate::scanner::{self, tokenize, Token, TokenType};
 
 pub fn assemble(source: String) -> Vec<u8> {
     let tokens = tokenize(source);
     let mut parser = Parser::new(tokens);
+
     let machine_code = parser.generate_machine_code();
     return machine_code;
 }
@@ -19,11 +20,76 @@ impl Parser {
         return Parser { tokens, current: 0 };
     }
 
+    fn label_pre_pass(&mut self) -> Vec<Token> {
+        let mut processed_tokens = Vec::with_capacity(self.tokens.len());
+        let mut labels: HashMap<Vec<char>, u16> = HashMap::new();
+
+        while self.current < self.tokens.len() {
+            // for i in 0..self.tokens.len() {
+            let token = self.tokens[self.current].clone();
+            self.advance();
+            let i = self.current;
+            // SPEEDUP: Don't clone
+            match token.token_type {
+                TokenType::LabelIdentifier => {
+                    // TODO(Reece): Range check
+                    if self.match_tokens_consume_if_true(&[
+                        TokenType::NumericalValue(scanner::NumericalValue::Number),
+                        TokenType::Newline,
+                    ]) {
+                        let number = self.tokens[i].literal.unwrap();
+
+                        // HACK: Just want to keep moving, Stop the cloning when I can be bothered
+                        // to worry about lifetimes
+                        let mut token_name = token.word.clone();
+                        token_name.remove(0);
+                        let token_name_again = token_name.clone();
+
+                        match labels.insert(token_name_again, number) {
+                            None => {}
+                            Some(x) => {
+                                panic!("{:?} was already defined with value {}", token_name, x)
+                            }
+                        }
+                    } else {
+                        panic!("Was expecting a number and a newline after LabelIdentifier, found {:?}, {:?}", self.tokens[i], self.tokens[i + 1]);
+                    };
+                }
+                TokenType::Label => {
+                    let value = match labels.get(&token.word) {
+                        None => panic!("Could not find value for {:?}", &token.word),
+                        Some(x) => x,
+                    };
+                    let mut value_token = token;
+                    value_token.token_type =
+                        TokenType::NumericalValue(scanner::NumericalValue::Label);
+                    value_token.literal = Some(*value);
+                    processed_tokens.push(value_token);
+                }
+                TokenType::Number => {
+                    let mut value_token = token;
+                    value_token.token_type =
+                        TokenType::NumericalValue(scanner::NumericalValue::Number);
+                    processed_tokens.push(value_token);
+                }
+                _ => processed_tokens.push(token),
+            }
+        }
+        self.current = 0;
+        return processed_tokens;
+    }
+
     /// Any instruction that uses a register specified by hexadecimal will be assumed to be valid
     /// for now
     fn generate_machine_code(&mut self) -> Vec<u8> {
         // Didn't feel necessary to generate "statements" from the tokens just to generate the
         // machine code at the time
+        // HACK: FIXME: Starting to feel more necessary to have an intermediate step between tokenizing
+        // and code generation with the addition of labels. But we're just gonna substitute as a
+        // pre pass
+        //
+        let tokens = self.label_pre_pass();
+        self.tokens = tokens;
         let mut machine_code = Vec::with_capacity(100);
         while self.current < self.tokens.len() {
             println!("Machine code so far {:X?}", &machine_code);
@@ -51,9 +117,16 @@ impl Parser {
                 TokenType::JP | TokenType::Call | TokenType::SKP | TokenType::SKNP => {
                     let prev = self.current;
                     let following_tokens = self.tokens[prev..=prev + 1].to_owned();
-                    if !self.match_tokens(&[TokenType::Number, TokenType::Newline]) {
+                    if !self.match_tokens_consume_if_true(&[
+                        TokenType::NumericalValue(scanner::NumericalValue::Number),
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        // TODO(reece): This matching on the label + number is getting very annoying
+                        TokenType::NumericalValue(scanner::NumericalValue::Label),
+                        TokenType::Newline,
+                    ]) {
                         panic!(
-                            "{:?} was expecting a number and a new line. Instead found {:?} and {:?}",
+                            "{:?} was expecting a number/label and a new line. Instead found {:?} and {:?}",
                             current_token.token_type,
                             following_tokens[0].token_type,
                             following_tokens[1].token_type,
@@ -71,12 +144,22 @@ impl Parser {
                     if !self.match_tokens_consume_if_true(&[
                         TokenType::IRegister,
                         TokenType::Comma,
-                        TokenType::Number,
+                        TokenType::NumericalValue(scanner::NumericalValue::Number),
                         TokenType::Newline,
                     ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
-                        TokenType::Number,
+                        TokenType::NumericalValue(scanner::NumericalValue::Number),
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        TokenType::IRegister,
+                        TokenType::Comma,
+                        TokenType::NumericalValue(scanner::NumericalValue::Label),
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::NumericalValue(scanner::NumericalValue::Label),
                         TokenType::Newline,
                     ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
@@ -87,7 +170,7 @@ impl Parser {
                         // TODO(reece): Better way for parsing messages here. Could just have our
                         // slices of expected Tokens be the thing we create the message from
                         panic!(
-                            "{:?} was expecting I, a comma, a number, and a new line, or register, comma, number, newline, or register, comma, number, register.. Instead found {:?} and {:?} and {:?}",
+                            "{:?} was expecting I, a comma, a number/label, and a new line, or register, comma, number/label, newline, or register, comma, number/label, register.. Instead found {:?} and {:?} and {:?}",
                             current_token.token_type,
                             following_tokens[0].token_type,
                             following_tokens[1].token_type,
@@ -111,11 +194,16 @@ impl Parser {
                     ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
-                        TokenType::Number,
+                        TokenType::NumericalValue(scanner::NumericalValue::Number),
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::NumericalValue(scanner::NumericalValue::Label),
                         TokenType::Newline,
                     ]) {
                         panic!(
-                            "{:?} was expecting a register, a comma, a register, and a new line, or a register, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?} and {:?}",
+                            "{:?} was expecting a register, a comma, a register, and a new line, or a register, a comma, a number/label, and a new line. Instead found {:?} and {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.tokens[prev].token_type,
                             self.tokens[prev + 1].token_type,
@@ -132,14 +220,19 @@ impl Parser {
                 TokenType::RND => {
                     let prev = self.current;
                     let following_tokens = self.tokens[prev..=prev + 2].to_owned();
-                    if !self.match_tokens(&[
+                    if !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
-                        TokenType::Number,
+                        TokenType::NumericalValue(scanner::NumericalValue::Number),
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::NumericalValue(scanner::NumericalValue::Label),
                         TokenType::Newline,
                     ]) {
                         panic!(
-                            "{:?} was expecting a register, a comma, a number, and a new line. Instead found {:?} and {:?} and {:?}",
+                            "{:?} was expecting a register, a comma, a number/label, and a new line. Instead found {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.tokens[prev].token_type,
                             self.tokens[prev + 1].token_type,
@@ -163,7 +256,12 @@ impl Parser {
                     ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
-                        TokenType::Number,
+                        TokenType::NumericalValue(scanner::NumericalValue::Number),
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::NumericalValue(scanner::NumericalValue::Label),
                         TokenType::Newline,
                     ]) && !self.match_tokens_consume_if_true(&[
                         TokenType::IRegister,
@@ -172,7 +270,7 @@ impl Parser {
                         TokenType::Newline,
                     ]) {
                         panic!(
-                            "{:?} was expecting a register, a comma, a register, and a new line, or a register, a comma, a number, and a new line, or an iregister, a comma, a register, and a new line. Instead found {:?} and {:?} and {:?} and {:?}",
+                            "{:?} was expecting a register, a comma, a register, and a new line, or a register, a comma, a number/label, and a new line, or an iregister, a comma, a register, and a new line. Instead found {:?} and {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.tokens[prev].token_type,
                             self.tokens[prev + 1].token_type,
@@ -219,16 +317,23 @@ impl Parser {
                 TokenType::DRAW => {
                     let prev = self.current;
                     let following_tokens = self.tokens[prev..=prev + 5].to_owned();
-                    if !self.match_tokens(&[
+                    if !self.match_tokens_consume_if_true(&[
                         TokenType::Register,
                         TokenType::Comma,
                         TokenType::Register,
                         TokenType::Comma,
-                        TokenType::Number,
+                        TokenType::NumericalValue(scanner::NumericalValue::Number),
+                        TokenType::Newline,
+                    ]) && !self.match_tokens_consume_if_true(&[
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::Register,
+                        TokenType::Comma,
+                        TokenType::NumericalValue(scanner::NumericalValue::Label),
                         TokenType::Newline,
                     ]) {
                         panic!(
-                            "{:?} was expecting a register, a comma, a register, a comma, a number and a new line. Instead found {:?} and {:?} and {:?} and {:?} and {:?} and {:?}",
+                            "{:?} was expecting a register, a comma, a register, a comma, a number/label and a new line. Instead found {:?} and {:?} and {:?} and {:?} and {:?} and {:?}",
                             current_token.token_type,
                             self.tokens[prev].token_type,
                             self.tokens[prev + 1].token_type,
@@ -248,14 +353,14 @@ impl Parser {
                 TokenType::Newline => {
                     // Do nothing
                 }
-                TokenType::Label => {
-                    todo!("Still to implement code gen with labels")
-                }
                 TokenType::Number
                 | TokenType::Addr
                 | TokenType::Comma
                 | TokenType::Colon
                 | TokenType::IRegister
+                | TokenType::Label
+                | TokenType::LabelIdentifier
+                | TokenType::NumericalValue(_)
                 | TokenType::Register => {
                     panic!(
                         "Was not expecting a {:?} ({:?})",
@@ -338,7 +443,7 @@ impl Parser {
                 ];
 
                 match token_types_to_consider {
-                    [TokenType::Register, TokenType::Number] => {
+                    [TokenType::Register, TokenType::NumericalValue(_)] => {
                         // 6xkk
                         let mut first_byte = 6;
                         first_byte = first_byte << 4;
@@ -359,7 +464,7 @@ impl Parser {
                         machine_code.push(first_byte);
                         machine_code.push(second_byte);
                     }
-                    [TokenType::IRegister, TokenType::Number] => {
+                    [TokenType::IRegister, TokenType::NumericalValue(_)] => {
                         // Annn
                         let mut first_byte = 0xA;
                         let addr = following_tokens[2].literal.unwrap();
@@ -381,7 +486,7 @@ impl Parser {
                 ];
 
                 match token_types_to_consider {
-                    [TokenType::Register, TokenType::Number] => {
+                    [TokenType::Register, TokenType::NumericalValue(_)] => {
                         // 3xkk
                         let mut first_byte = 3;
                         first_byte = first_byte << 4;
@@ -458,7 +563,7 @@ impl Parser {
                 ];
 
                 match token_types_to_consider {
-                    [TokenType::Register, TokenType::Number] => {
+                    [TokenType::Register, TokenType::NumericalValue(_)] => {
                         // 7xkk
                         let mut first_byte = 7;
                         first_byte = first_byte << 4;
@@ -660,5 +765,12 @@ mod tests {
         let maze_assembly = std::fs::read_to_string("./test_programs/maze.asm").unwrap();
         let maze_machine_code = std::fs::read("./test_programs/maze.ch8").unwrap();
         assert_eq!(assemble(maze_assembly), maze_machine_code);
+    }
+
+    #[test]
+    fn it_assembles_with_labels() {
+        let label_assembly = std::fs::read_to_string("./test_programs/labels.asm").unwrap();
+        let label_machine_code = std::fs::read("./test_programs/labels.ch8").unwrap();
+        assert_eq!(assemble(label_assembly), label_machine_code);
     }
 }

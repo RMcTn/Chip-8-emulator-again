@@ -52,39 +52,6 @@ fn default_keymap() -> Keymap {
 }
 
 fn main() {
-    let assembly_program = vec![
-        "JP 0x202".to_string(),
-        "LD I, 0x200".to_string(),
-        "LD 0x1, 0x3".to_string(),
-        "LD 0x0, 0x1".to_string(),
-    ];
-
-    let assembly_program_v2 = "JP 0x202
-        SE V2, 0x33
-        SE VC, VA
-        AND VA, V2
-        SKP 0x5
-        SKNP 0x5
-        LD V1, 0x3
-        LD I, 0x200
-        LD VA, 0x1
-        CALL 0x500
-        SNE VC, VA
-        SNE VC, 0xAA
-        ADD VA, VB
-        ADD I, VB
-        ADD VC, 0x2
-        OR VA, V2
-        XOR VA, V2
-        SUB VA, V2
-        SUB VA, V2
-        RND V2, 0x55
-        RET
-        CLS
-        DRW 0x1, 0x2, 0x5
-        "
-    .to_string();
-
     let file_contents = std::fs::read_to_string("./test_programs/maze.asm").unwrap();
     dbg!(&file_contents);
     let machine_code = assembler::assemble(file_contents);
@@ -325,4 +292,3 @@ impl AudioCallback for SquareWave {
         }
     }
 }
-
