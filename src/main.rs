@@ -5,10 +5,6 @@ mod scanner;
 use chip::*;
 
 use std::{collections::HashMap, time::Duration};
-// TODO(reece): Write an assembler for this as well using this reference
-// http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#3.1
-// Add in assembly labels for jumps or loading into register
-//
 // bunch of useful ROMs https://github.com/kripod/chip8-roms
 
 use sdl2::{
@@ -52,11 +48,6 @@ fn default_keymap() -> Keymap {
 }
 
 fn main() {
-    let file_contents = std::fs::read_to_string("./test_programs/maze.asm").unwrap();
-    dbg!(&file_contents);
-    let machine_code = assembler::assemble(file_contents);
-    dbg!(&machine_code);
-
     let keymap = default_keymap();
 
     let sdl_context = sdl2::init().unwrap();

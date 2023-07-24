@@ -1,4 +1,4 @@
-use std::{collections::HashMap, format, panic, todo};
+use std::{collections::HashMap, panic, todo};
 
 use crate::scanner::{self, tokenize, Token, TokenType};
 
@@ -92,8 +92,6 @@ impl Parser {
         self.tokens = tokens;
         let mut machine_code = Vec::with_capacity(100);
         while self.current < self.tokens.len() {
-            println!("Machine code so far {:X?}", &machine_code);
-
             let current_token = self.tokens[self.current].clone();
             self.advance();
             match current_token.token_type {
@@ -672,10 +670,6 @@ impl Parser {
 
             unimplemented_token => todo!("{:?}", unimplemented_token),
         }
-        println!(
-            "Machine code for {:?}: {:X?}",
-            instruction_token.token_type, &machine_code
-        );
         return machine_code;
     }
 
