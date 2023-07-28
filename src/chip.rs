@@ -463,7 +463,7 @@ impl Chip8 {
                     // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx
 
                     let sprite_location =
-                        (FONT_SPRITE_LENGTH_IN_BYTES * FONT_START_LOCATION) as u16;
+                        ((FONT_SPRITE_LENGTH_IN_BYTES * x as usize) + FONT_START_LOCATION) as u16;
                     self.i_register = sprite_location;
                     self.increment_pc();
                     return 91;
