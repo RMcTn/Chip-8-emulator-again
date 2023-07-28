@@ -217,7 +217,8 @@ fn main() {
         // TODO(reece): Score isn't updating for Breakout or Pong, but the BCD test passes on
         // 0xFx33 test for Corax+ opcode test rom
         // UPDATE ON BCD - The values are definitely correct, we're just drawing them wrong
-        // TODO(reece): There's some flickering, super noticable with breakout game.
+        // NOTE - The flickering in breakout is limited to the paddle, and also happens in the Octo
+        // emulator, so I think it's intended
         draw_display(&mut canvas, &mut texture, &chip.display_buffer);
 
         let current_frame_time = std::time::Instant::now();
