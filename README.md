@@ -1,3 +1,7 @@
+## Chip 8 Emulator
+
+[Chip-8](https://en.wikipedia.org/wiki/CHIP-8)  
+<img src="Breakout.png" alt="Breakout running on the emulator" width="300" />
 ## How to use
 
 ### Loading a ROM
