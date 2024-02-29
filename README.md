@@ -1,9 +1,8 @@
 ## Chip 8 Emulator
 
 [Chip-8](https://en.wikipedia.org/wiki/CHIP-8)  
-Here's Breakout running on 
 <figure>
-  <img src="Breakout.png" alt="Breakout running on the emulator" width="300" />
+  <img src="Breakout.png" alt="The player has 1 life left, with a score of 18" width="300" />
   <figcaption>Breakout running on the emulator</figcaption>
 </figure>  
 
