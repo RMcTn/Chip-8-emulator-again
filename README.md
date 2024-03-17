@@ -1,10 +1,9 @@
 ## Chip 8 Emulator
 
 [Chip-8](https://en.wikipedia.org/wiki/CHIP-8)  
-<figure>
-  <img src="Breakout.png" alt="The player has 1 life left, with a score of 18" width="300" />
-  <figcaption>Breakout running on the emulator</figcaption>
-</figure>  
+
+https://github.com/RMcTn/Chip-8-emulator-again/assets/18317099/c42fbf22-954b-4ebc-8b9e-f367d3c0e6df
+
 
 ## How to use
 
